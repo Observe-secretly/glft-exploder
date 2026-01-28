@@ -1,0 +1,147 @@
+/* 全局样式 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+  background-color: #f5f5f5;
+  color: #333;
+  line-height: 1.6;
+}
+
+/* 应用容器 */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* 场景容器 */
+#scene-container {
+  flex: 1;
+  background-color: #e0e0e0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 控制面板 */
+#controls {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 260px;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 16px;
+  z-index: 100;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+#panel-container h3 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 信息面板 */
+.info-panel {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.info-panel h3 {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #999;
+}
+
+.info-panel ul {
+  list-style: none;
+  padding: 0;
+}
+
+.info-panel li {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  padding: 5px 0;
+  border-top: 1px solid #eee;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  #controls {
+    width: 100%;
+    top: auto;
+    bottom: 0;
+    right: 0;
+    border-radius: 8px 8px 0 0;
+    max-height: 50vh;
+  }
+}
+
+/* 加载指示器 */
+.loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+/* 暗色主题支持 */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #222;
+    color: #f5f5f5;
+  }
+  
+  #controls {
+    background-color: rgba(40, 40, 40, 0.9);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  }
+  
+  .control-group h3 {
+    color: #ddd;
+    border-bottom-color: #444;
+  }
+  
+  .control-item select,
+  .control-item input {
+    background-color: #333;
+    color: #f5f5f5;
+    border-color: #555;
+  }
+  
+  .info-panel {
+    background-color: #333;
+  }
+  
+  .info-panel h3 {
+    color: #ddd;
+  }
+  
+  .info-item {
+    border-top-color: #444;
+  }
+}

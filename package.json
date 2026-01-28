@@ -1,0 +1,67 @@
+{
+  "name": "gltf-exploder",
+  "version": "0.1.0",
+  "description": "A Three.js plugin for creating exploded views of glTF/GLB models",
+  "author": "Your Name",
+  "license": "MIT",
+  "type": "module",
+  "keywords": [
+    "three.js",
+    "gltf",
+    "glb",
+    "exploded-view",
+    "3d",
+    "model",
+    "visualization",
+    "webgl"
+  ],
+  "main": "dist/gltf-exploder.cjs.js",
+  "module": "dist/gltf-exploder.esm.js",
+  "browser": "dist/gltf-exploder.umd.js",
+  "types": "dist/types/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "rimraf dist && rollup -c",
+    "build:example": "vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "three": ">=0.125.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^22.0.2",
+    "@rollup/plugin-node-resolve": "^13.3.0",
+    "@rollup/plugin-typescript": "^8.5.0",
+    "@types/node": "^18.19.130",
+    "@types/three": "^0.141.0",
+    "@typescript-eslint/eslint-plugin": "^5.62.0",
+    "@typescript-eslint/parser": "^5.62.0",
+    "eslint": "^8.57.1",
+    "rimraf": "^3.0.2",
+    "rollup": "^2.79.2",
+    "rollup-plugin-dts": "^4.2.3",
+    "rollup-plugin-terser": "^7.0.2",
+    "three": "^0.182.0",
+    "typescript": "^4.9.5",
+    "vite": "^2.9.18",
+    "vitest": "^0.15.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/gltf-exploder.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/gltf-exploder/issues"
+  },
+  "homepage": "https://github.com/yourusername/gltf-exploder#readme"
+}
