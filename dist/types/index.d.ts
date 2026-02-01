@@ -54,8 +54,16 @@ interface ExploderOptions {
     duration?: number;
     /** 是否自动创建 UI */
     createUI?: boolean;
-    /** UI 容器（可以是选择器或 HTMLElement） */
+    /** 是否自动缩放和居中模型（自适应视图） */
+    adaptModel?: boolean;
+    /** 模型对象 (Object3D) 或模型路径 (string) */
+    model?: Object3D | string;
+    /** 3D 视口容器（全自动模式下必填，可以是选择器或 HTMLElement） */
+    viewport?: HTMLElement | string;
+    /** UI 容器（控制面板容器，可以是选择器或 HTMLElement） */
     container?: HTMLElement | string;
+    /** HUD 容器（播放进度条容器，如果不提供则默认放在 body 或 viewport） */
+    hudContainer?: HTMLElement | string;
     /** UI 类型 */
     uiType?: 'slider' | 'panel';
     /** UI 样式配置 */
@@ -88,22 +96,39 @@ declare class GLTFExploder {
     private core;
     private ui;
     private renderer;
+    private scene;
+    private camera;
+    private controls;
+    private container;
     private onModelChangeCallback?;
     private onHelperVisibilityChangeCallback?;
+    private options;
     /**
      * 构造函数
-     * @param model 模型对象
-     * @param scene 场景
-     * @param camera 相机
-     * @param renderer 渲染器
-     * @param options 配置选项
+     * 支持两种模式：
+     * 1. 全自动模式: new GLTFExploder(options) - 自动创建场景、加载模型
+     * 2. 手动集成模式: new GLTFExploder(model, scene, camera, renderer, options) - 集成到现有场景
      */
-    constructor(model: Object3D, scene: Scene, camera: Camera, renderer: WebGLRenderer, options?: ExploderOptions);
+    constructor(arg1: Object3D | ExploderOptions, scene?: Scene, camera?: Camera, renderer?: WebGLRenderer, options?: ExploderOptions);
+    /**
+     * 初始化全自动模式
+     */
+    private initializeAutoMode;
+    private onResize;
+    private animate;
+    /**
+     * 初始化核心引擎和 UI
+     */
+    private initCore;
     /**
      * 处理模型切换
      * @param modelPath 模型路径
      */
     private handleModelChange;
+    /**
+     * 内部自动加载模型方法
+     */
+    private loadModelAuto;
     /**
      * 处理辅助显示状态变化
      * @param visible 是否显示
@@ -119,6 +144,16 @@ declare class GLTFExploder {
      * @param callback 回调函数
      */
     setHelperVisibilityChangeCallback(callback: HelperVisibilityChangeCallback): void;
+    /**
+     * 设置新模型
+     * @param model 新的模型对象
+     */
+    setModel(model: Object3D): void;
+    /**
+     * 设置内部灯光可见性
+     * @param visible 是否可见
+     */
+    setInternalLightingVisible(visible: boolean): void;
     /**
      * 设置爆炸进度
      * @param progress 进度值（0-1）

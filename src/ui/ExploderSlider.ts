@@ -108,7 +108,15 @@ export class ExploderSlider implements ExploderUI {
   }
   
   /**
-   * 更新 UI 状态
+   * 更新辅助显示状态
+   * @param _visible 是否可见
+   */
+  public updateHelperVisibility(_visible: boolean): void {
+    // 基础滑块模式暂不支持此功能
+  }
+
+  /**
+   * 更新进度状态
    * @param progress 爆炸进度（0-1）
    */
   public update(progress: number): void {

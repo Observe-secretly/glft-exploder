@@ -1,0 +1,106 @@
+:root {
+    --exploder-accent: #2563EB;
+    --exploder-bg-main: #FFFFFF;
+    --exploder-bg-sub: #F9FAFB;
+    --exploder-border: #E5E7EB;
+    --exploder-text-main: #1F2937;
+    --exploder-text-sub: #6B7280;
+    --exploder-text-muted: #9CA3AF;
+}
+
+/* 基础样式重置与公用类 */
+.exploder-ui-root {
+    font-family: 'Satoshi', 'Inter', -apple-system, sans-serif;
+    color: var(--exploder-text-main);
+}
+
+/* 视口网格背景 */
+.exploder-viewport-grid {
+    background-image: 
+        linear-gradient(to right, rgba(0,0,0,0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0,0,0,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+}
+
+/* 状态徽章 */
+.exploder-status-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #10B981;
+    border-radius: 50%;
+    display: inline-block;
+}
+.exploder-animate-pulse {
+    animation: exploder-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes exploder-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .5; }
+}
+
+/* 自定义滚动条 */
+.exploder-scrollbar::-webkit-scrollbar {
+    width: 4px;
+}
+.exploder-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--exploder-border);
+    border-radius: 10px;
+}
+
+/* 范围滑块统一样式 */
+.exploder-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+    width: 100%;
+}
+.exploder-slider::-webkit-slider-runnable-track {
+    background: #F3F4F6;
+    height: 4px;
+    border-radius: 2px;
+}
+.exploder-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 16px;
+    width: 16px;
+    background: var(--exploder-accent);
+    border-radius: 50%;
+    margin-top: -6px;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* 模式选择按钮样式 */
+.exploder-mode-btn {
+    padding: 10px;
+    background: var(--exploder-bg-sub);
+    border: 1px solid transparent;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--exploder-text-sub);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+.exploder-mode-btn:hover {
+    border-color: var(--exploder-border);
+}
+.exploder-mode-btn.active {
+    background: #EFF6FF;
+    border-color: #BFDBFE;
+    color: var(--exploder-accent);
+}
+
+/* 面板通用卡片样式 */
+.exploder-card {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(229, 231, 235, 0.5);
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}

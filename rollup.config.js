@@ -1,6 +1,7 @@
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import typescript from '@rollup/plugin-typescript';
+import postcss from 'rollup-plugin-postcss';
 import { terser } from 'rollup-plugin-terser';
 import dts from 'rollup-plugin-dts';
 import { fileURLToPath } from 'url';
@@ -43,17 +44,28 @@ export default [
         banner,
         sourcemap: true,
         globals: {
-          three: 'THREE'
+          three: 'THREE',
+          'three/examples/jsm/loaders/GLTFLoader.js': 'THREE.GLTFLoader',
+          'three/examples/jsm/controls/OrbitControls.js': 'THREE.OrbitControls'
         }
       }
     ],
-    external: ['three'],
+    external: [
+      'three',
+      'three/examples/jsm/loaders/GLTFLoader.js',
+      'three/examples/jsm/controls/OrbitControls.js'
+    ],
     plugins: [
       resolve(),
       commonjs(),
+      postcss({
+        inject: true,
+        minimize: true
+      }),
       typescript({
         tsconfig: './tsconfig.json',
-        declaration: false
+        declaration: false,
+        declarationDir: undefined
       }),
       terser({
         output: {
@@ -69,6 +81,12 @@ export default [
       file: 'dist/types/index.d.ts',
       format: 'es'
     },
-    plugins: [dts()]
+    plugins: [
+      postcss({
+        inject: false,
+        extract: false
+      }),
+      dts()
+    ]
   }
 ];

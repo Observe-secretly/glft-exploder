@@ -99,6 +99,8 @@ export const EXPLODER_CONSTANTS = {
   DEFAULT_DURATION: 1000,
   // 默认最大爆炸距离倍率
   DEFAULT_MAX_DISTANCE: 2.0,
+  // 默认模型自适应尺寸（归一化后的参考尺寸）
+  DEFAULT_ADAPT_SIZE: 5.0,
   // 算法权重常量
   WEIGHTS: {
     BASE: 0.5,
@@ -149,8 +151,16 @@ export interface ExploderOptions {
   duration?: number;
   /** 是否自动创建 UI */
   createUI?: boolean;
-  /** UI 容器（可以是选择器或 HTMLElement） */
+  /** 是否自动缩放和居中模型（自适应视图） */
+  adaptModel?: boolean;
+  /** 模型对象 (Object3D) 或模型路径 (string) */
+  model?: Object3D | string;
+  /** 3D 视口容器（全自动模式下必填，可以是选择器或 HTMLElement） */
+  viewport?: HTMLElement | string;
+  /** UI 容器（控制面板容器，可以是选择器或 HTMLElement） */
   container?: HTMLElement | string;
+  /** HUD 容器（播放进度条容器，如果不提供则默认放在 body 或 viewport） */
+  hudContainer?: HTMLElement | string;
   /** UI 类型 */
   uiType?: 'slider' | 'panel';
   /** UI 样式配置 */
@@ -187,6 +197,10 @@ export interface ExploderUI {
   updateMode?(mode: ExplosionMode): void;
   /** 更新轴向状态 */
   updateAxialVector?(vector: Vector3): void;
+  /** 更新模型信息 */
+  updateModel?(modelPath: string): void;
+  /** 更新辅助显示状态 */
+  updateHelperVisibility?(visible: boolean): void;
   /** 释放资源 */
   dispose(): void;
 }

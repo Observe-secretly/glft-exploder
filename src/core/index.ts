@@ -70,8 +70,10 @@ export class ExploderCore {
       maxDistance: options.maxDistance ?? EXPLODER_CONSTANTS.DEFAULT_MAX_DISTANCE,
       duration: options.duration ?? EXPLODER_CONSTANTS.DEFAULT_DURATION,
       createUI: options.createUI ?? true,
+      viewport: options.viewport ?? document.body,
       container: options.container ?? document.body,
       uiType: options.uiType ?? 'slider',
+      hudContainer: options.hudContainer ?? document.body,
       uiStyle: options.uiStyle ?? {
         width: '200px',
         height: '30px',
@@ -80,11 +82,18 @@ export class ExploderCore {
       directionStrategy: options.directionStrategy ?? calculateDirection,
       mode: options.mode ?? ExplosionMode.RADIAL,
       axialVector: options.axialVector ?? new Vector3(0, 1, 0),
+      adaptModel: options.adaptModel ?? true,
+      model: options.model ?? model,
       models: options.models ?? [],
       initialModel: options.initialModel ?? ''
     };
     
     this.mode = this.options.mode;
+
+    // 如果开启了自适应模型，先执行缩放和居中
+    if (this.options.adaptModel) {
+      this.adaptModelToScene();
+    }
     
     // 计算模型中心和参考半径
     const box = new Box3().setFromObject(this.model);
@@ -95,12 +104,36 @@ export class ExploderCore {
     // 保存原始变换和计算爆炸方向
     this.saveOriginalTransforms(this.model);
 
-    // 初始化 8 点位全方位光照系统
+    // 初始化 6 点位全方位光照系统
     this.setupInternalLighting();
   }
   
   /**
-   * 初始化 8 点位全方位光照系统
+   * 自动缩放和居中模型
+   * @private
+   */
+  private adaptModelToScene(): void {
+    const box = new Box3().setFromObject(this.model);
+    // const center = box.getCenter(new Vector3());
+    const size = box.getSize(new Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    
+    if (maxDim > 0) {
+      // 统一缩放基准：将模型缩放到约 5 个单位大小
+      const scale = EXPLODER_CONSTANTS.DEFAULT_ADAPT_SIZE / maxDim;
+      this.model.scale.multiplyScalar(scale);
+      
+      // 重新计算中心点（缩放后）
+      const newBox = new Box3().setFromObject(this.model);
+      const newCenter = newBox.getCenter(new Vector3());
+      
+      // 将模型中心移动到原点
+      this.model.position.sub(newCenter);
+    }
+  }
+
+  /**
+   * 初始化 6 点位全方位光照系统
    * 确保模型在所有角度都不会发黑
    * @private
    */
@@ -115,14 +148,15 @@ export class ExploderCore {
     this.scene.add(hemisphereLight);
     this.internalLights.push(hemisphereLight);
 
-    // 3. 8 点位平行光（立方体 8 个顶点方向）
+    // 3. 6 点位平行光（立方体 6 个面方向）
     // 使用模型半径作为距离基准
     const lightDist = this.modelRadius * 3;
     
-    // 定义 8 个顶点方向
+    // 定义 6 个面方向
     const vertices = [
-      [1, 1, 1], [1, 1, -1], [1, -1, 1], [1, -1, -1],
-      [-1, 1, 1], [-1, 1, -1], [-1, -1, 1], [-1, -1, -1]
+      [1, 0, 0], [-1, 0, 0],
+      [0, 1, 0], [0, -1, 0],
+      [0, 0, 1], [0, 0, -1]
     ];
 
     vertices.forEach(([x, y, z]) => {
@@ -139,6 +173,42 @@ export class ExploderCore {
     });
   }
   
+  /**
+   * 设置内部灯光可见性
+   * @param visible 是否可见
+   */
+  public setInternalLightingVisible(visible: boolean): void {
+    this.internalLights.forEach(light => {
+      light.visible = visible;
+    });
+    
+    // 重新渲染
+    if (this.renderer && this.scene && this.camera) {
+      this.renderer.render(this.scene, this.camera);
+    }
+  }
+
+  /**
+   * 设置内部灯光亮度
+   * @param exposure 亮度倍率
+   */
+  public setInternalLightingExposure(exposure: number): void {
+    this.internalLights.forEach(light => {
+      if (light instanceof AmbientLight) {
+        light.intensity = EXPLODER_CONSTANTS.LIGHTS.INTERNAL.AMBIENT * exposure;
+      } else if (light instanceof HemisphereLight) {
+        light.intensity = EXPLODER_CONSTANTS.LIGHTS.INTERNAL.HEMISPHERE * exposure;
+      } else if (light instanceof DirectionalLight) {
+        light.intensity = EXPLODER_CONSTANTS.LIGHTS.INTERNAL.DIRECTIONAL * exposure;
+      }
+    });
+
+    // 重新渲染
+    if (this.renderer && this.scene && this.camera) {
+      this.renderer.render(this.scene, this.camera);
+    }
+  }
+
   /**
    * 计算所有部件在当前轴向上的投影距离，并进行归一化处理
    * @private
@@ -292,6 +362,87 @@ export class ExploderCore {
   }
   
   /**
+   * 设置新模型
+   * @param model 新的模型对象
+   */
+  public setModel(model: Object3D): void {
+    // 1. 重置当前进度
+    this.reset();
+    
+    // 2. 更新模型引用
+    this.model = model;
+
+    // 如果开启了自适应模型，执行缩放和居中
+    if (this.options.adaptModel) {
+      this.adaptModelToScene();
+    }
+    
+    // 3. 计算新模型的中心和半径
+    const box = new Box3().setFromObject(this.model);
+    this.modelCenter = box.getCenter(new Vector3());
+    const sphere = box.getBoundingSphere(new Sphere());
+    this.modelRadius = sphere.radius || 1.0;
+    
+    // 4. 清理旧缓存
+    this.originalPositions.clear();
+    this.originalRotations.clear();
+    this.originalScales.clear();
+    this.explodeDirections.clear();
+    this.sizeWeights.clear();
+    this.axialDistances.clear();
+    this.hierarchicalDepths.clear();
+    this.explodableMeshes = [];
+    
+    // 5. 重新保存变换
+    this.saveOriginalTransforms(this.model);
+    
+    // 6. 更新灯光位置
+    this.updateInternalLighting();
+    
+    // 7. 重新渲染
+    if (this.renderer && this.scene && this.camera) {
+      this.renderer.render(this.scene, this.camera);
+    }
+  }
+
+  /**
+   * 更新内部灯光位置和目标
+   * @private
+   */
+  private updateInternalLighting(): void {
+    const lightDist = this.modelRadius * 3;
+    const directions = [
+      [1, 0, 0], [-1, 0, 0],
+      [0, 1, 0], [0, -1, 0],
+      [0, 0, 1], [0, 0, -1]
+    ];
+    
+    // 获取所有的平行光
+    const dirLights = this.internalLights.filter(l => l instanceof DirectionalLight) as DirectionalLight[];
+    
+    if (dirLights.length === directions.length) {
+      // 如果灯光数量一致，只更新位置和目标
+      dirLights.forEach((light, i) => {
+        const [x, y, z] = directions[i];
+        light.position.set(
+          this.modelCenter.x + x * lightDist,
+          this.modelCenter.y + y * lightDist,
+          this.modelCenter.z + z * lightDist
+        );
+        light.target = this.model;
+      });
+    } else {
+      // 否则重新初始化
+      this.internalLights.forEach(light => {
+        this.scene.remove(light);
+        if (light.dispose) light.dispose();
+      });
+      this.internalLights = [];
+      this.setupInternalLighting();
+    }
+  }
+
+  /**
    * 设置爆炸进度（0-1 之间的值）
    * 
    * @param progress - 爆炸进度，0 表示未爆炸，1 表示完全爆炸
@@ -323,8 +474,10 @@ export class ExploderCore {
       const direction = this.explodeDirections.get(mesh);
       
       if (originalPosition && direction) {
-        // 计算爆炸距离 = 最大距离 * 进度 * 系数
-        const distance = this.options.maxDistance * this.progress * this.multiplier;
+        // 计算基础爆炸距离
+        // 改进：位移量应该与模型半径挂钩，确保不同尺寸的模型表现一致
+        // 基础距离 = 模型半径 * 最大距离系数 * 进度 * 倍率
+        const baseDistance = this.modelRadius * this.options.maxDistance * this.progress * this.multiplier;
         
         const targetWorldPosition = originalPosition.clone();
         
@@ -332,15 +485,16 @@ export class ExploderCore {
         switch (this.mode) {
           case ExplosionMode.RADIAL:
             // 径向爆炸：基于中心点的散度位移
-            targetWorldPosition.add(direction.clone().multiplyScalar(distance));
+            targetWorldPosition.add(direction.clone().multiplyScalar(baseDistance));
             break;
             
           case ExplosionMode.AXIAL: {
             // 轴向分层爆炸：沿特定轴线按投影距离偏移
             const axialDistance = this.axialDistances.get(mesh) || 0;
             const axialDir = this.options.axialVector.clone().normalize();
-            // 位移量 = 轴向投影值 * 进度 * 系数
-            targetWorldPosition.add(axialDir.multiplyScalar(axialDistance * this.progress * this.multiplier));
+            // 位移量 = 轴向投影值 * 进度 * 系数 * 基础位移参考
+            // 这里 axialDistance 已经是归一化到 -0.5 到 0.5 的，所以乘以半径和 maxDistance 比较合理
+            targetWorldPosition.add(axialDir.multiplyScalar(axialDistance * this.modelRadius * this.options.maxDistance * this.progress * this.multiplier));
             break;
           }
             
@@ -348,9 +502,9 @@ export class ExploderCore {
             // 归一化径向爆炸：按距离中心的比例拉开
             // 计算原始相对位移向量
             const relativePos = originalPosition.clone().sub(this.modelCenter);
-            // 位移 = 原始相对位移 * 进度 * 系数
-            // 效果是整体像气球一样膨胀，保持原始比例
-            targetWorldPosition.add(relativePos.multiplyScalar(this.progress * this.multiplier));
+            // 改进：不再直接使用 relativePos，而是将其与 progress * multiplier * maxDistance 结合
+            // 效果：整体像气球一样膨胀，位移量与模型原始尺寸成比例，但受 maxDistance 约束
+            targetWorldPosition.add(relativePos.multiplyScalar(this.options.maxDistance * this.progress * this.multiplier));
             break;
           }
             
@@ -358,7 +512,7 @@ export class ExploderCore {
             // 尺寸加权爆炸：位移距离与零件体积正相关
             const weight = this.sizeWeights.get(mesh) || 1.0;
             // 位移 = 基础距离 * 体积权重
-            targetWorldPosition.add(direction.clone().multiplyScalar(distance * weight));
+            targetWorldPosition.add(direction.clone().multiplyScalar(baseDistance * weight));
             break;
           }
             
@@ -366,14 +520,12 @@ export class ExploderCore {
             // 装配树分级爆炸：位移距离与层级深度正相关
             const depthWeight = this.hierarchicalDepths.get(mesh) || 1.0;
             // 位移 = 基础距离 * 深度权重
-            targetWorldPosition.add(direction.clone().multiplyScalar(distance * depthWeight));
+            targetWorldPosition.add(direction.clone().multiplyScalar(baseDistance * depthWeight));
             break;
           }
             
           case ExplosionMode.FORCE_FIELD: {
             // 力场式爆炸：模拟从中心向外的势场衰减效果
-            // 定义势场 Phi(r) = -ln(r/R + 0.2)
-            // 负梯度 -grad(Phi) = [1 / (r/R + 0.2)] * (1/R) * r_hat
             const originalPos = this.originalPositions.get(mesh);
             if (originalPos) {
               const relativePos = originalPos.clone().sub(this.modelCenter);
@@ -381,7 +533,7 @@ export class ExploderCore {
               const rNorm = r / this.modelRadius;
               // 模拟力场强度：随距离增加而衰减
               const forceMagnitude = 1.0 / (rNorm + EXPLODER_CONSTANTS.WEIGHTS.FORCE_FIELD_OFFSET);
-              targetWorldPosition.add(direction.clone().multiplyScalar(distance * forceMagnitude));
+              targetWorldPosition.add(direction.clone().multiplyScalar(baseDistance * forceMagnitude));
             }
             break;
           }
@@ -547,17 +699,29 @@ export class ExploderCore {
    * 销毁实例，清理资源
    */
   public dispose(): void {
-    // 重置模型到原始状态
+    // 1. 移除所有内部灯光
+    this.internalLights.forEach(light => {
+      this.scene.remove(light);
+      if (light.dispose) {
+        light.dispose();
+      }
+    });
+    this.internalLights = [];
+
+    // 2. 重置模型到原始状态
     this.reset();
     
-    // 清空所有缓存的数据
+    // 3. 清空所有缓存的数据
     this.originalPositions.clear();
     this.originalRotations.clear();
     this.originalScales.clear();
     this.explodeDirections.clear();
+    this.sizeWeights.clear();
+    this.axialDistances.clear();
+    this.hierarchicalDepths.clear();
     this.explodableMeshes = [];
     
-    // 移除回调
+    // 4. 移除回调
     this.onProgressChangeCallback = null;
   }
 }

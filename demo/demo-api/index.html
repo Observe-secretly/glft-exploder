@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GLTF Exploder - Full API Demo</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; }
+        #canvas-container { width: 100vw; height: 100vh; }
+        
+        .custom-controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 24px;
+            border-radius: 16px;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            min-width: 340px;
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .control-group:last-child { border-bottom: none; }
+
+        .control-row { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
+        
+        select, input[type="range"], input[type="checkbox"] { cursor: pointer; }
+        
+        select {
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 5px 10px;
+            border-radius: 4px;
+            width: 140px;
+        }
+
+        input[type="range"] { flex: 1; accent-color: #00d4ff; }
+        
+        .label { font-size: 13px; font-weight: 600; color: #ccc; }
+        .value { font-family: 'Courier New', monospace; min-width: 45px; text-align: right; color: #00d4ff; font-weight: bold; font-size: 14px; }
+        h3 { margin: 0 0 10px 0; font-size: 18px; color: #00d4ff; text-align: left; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #00d4ff; padding-bottom: 5px; }
+        
+        .btn-group { display: flex; gap: 10px; margin-top: 5px; }
+        button {
+            flex: 1;
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+            border: 1px solid #00d4ff;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        button:hover { background: rgba(0, 212, 255, 0.4); }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div class="custom-controls">
+        <h3>API 完整性测试面板</h3>
+        
+        <!-- 核心进度 -->
+        <div class="control-group">
+            <div class="control-row">
+                <label class="label" for="progress-range">爆炸进度</label>
+                <input type="range" id="progress-range" min="0" max="1" step="0.01" value="0" title="setProgress(val)">
+                <span class="value" id="progress-val">0%</span>
+            </div>
+        </div>
+
+        <!-- 爆炸模式 -->
+        <div class="control-group">
+            <div class="control-row">
+                <label class="label" for="mode-select">爆炸模式</label>
+                <select id="mode-select" title="setMode(val)">
+                    <option value="radial">RADIAL (径向)</option>
+                    <option value="axial">AXIAL (轴向)</option>
+                    <option value="size_weighted">SIZE_WEIGHTED (尺寸)</option>
+                    <option value="hierarchical">HIERARCHICAL (层级)</option>
+                    <option value="force_field">FORCE_FIELD (力场)</option>
+                </select>
+            </div>
+            <!-- 轴向选择 (仅在轴向模式显示) -->
+            <div class="control-row" id="axial-row" style="display: none;">
+                <label class="label" for="axial-select">轴向向量</label>
+                <select id="axial-select" title="setAxialVector(vec)">
+                    <option value="1,0,0">X 轴 (1,0,0)</option>
+                    <option value="0,1,0" selected>Y 轴 (0,1,0)</option>
+                    <option value="0,0,1">Z 轴 (0,0,1)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 扩展参数 -->
+        <div class="control-group">
+            <div class="control-row">
+                <label class="label" for="multiplier-range">位移系数</label>
+                <input type="range" id="multiplier-range" min="0.1" max="5" step="0.1" value="1.0" title="setMultiplier(val)">
+                <span class="value" id="multiplier-val">1.0</span>
+            </div>
+            <div class="control-row">
+                <label class="label" for="exposure-range">补光亮度</label>
+                <input type="range" id="exposure-range" min="0" max="4" step="0.1" value="1.0" title="setExposure(val)">
+                <span class="value" id="exposure-val">1.0</span>
+            </div>
+        </div>
+
+        <!-- 开关控制 -->
+        <div class="control-group">
+            <div class="control-row">
+                <label class="label" for="light-toggle">内部补光系统</label>
+                <input type="checkbox" id="light-toggle" checked title="setInternalLightingVisible(bool)">
+            </div>
+        </div>
+
+        <!-- 动作按钮 -->
+        <div class="control-group">
+            <div class="btn-group">
+                <button id="reset-btn" title="reset()">一键重置</button>
+                <button id="dispose-btn" style="color: #ff4d4d; border-color: #ff4d4d; background: rgba(255, 77, 77, 0.1);" title="dispose()">销毁实例</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./main.ts"></script>
+</body>
+</html>
