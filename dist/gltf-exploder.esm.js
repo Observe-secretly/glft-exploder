@@ -1,5 +1,5 @@
 /*!
- * gltf-exploder v0.1.1
+ * gltf-exploder v0.1.3
  * (c) 2026 limin
  * Released under the MIT License.
  */

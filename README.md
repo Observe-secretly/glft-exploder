@@ -2,6 +2,8 @@
 
 一个专为 Three.js 开发者打造的高性能、可定制化 glTF/GLB 模型爆炸图（拆解图）插件。
 
+![Demo Preview](./review.gif)
+
 ---
 
 ## 📖 目录
