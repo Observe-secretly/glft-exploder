@@ -84,3 +84,35 @@ export function getContainer(container: HTMLElement | string): HTMLElement {
 export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
+
+/**
+ * 计算模型总面数（三角形数量）
+ * @param model 模型对象
+ * @returns 面数
+ */
+export function calculateFaceCount(model: Object3D): number {
+  let count = 0;
+  model.traverse((child: any) => {
+    if (child.isMesh && child.geometry) {
+      const geometry = child.geometry;
+      if (geometry.index) {
+        count += geometry.index.count / 3;
+      } else if (geometry.attributes.position) {
+        count += geometry.attributes.position.count / 3;
+      }
+    }
+  });
+  return Math.floor(count);
+}
+
+/**
+ * 从路径或 URL 中提取文件名
+ * @param path 路径
+ * @returns 文件名
+ */
+export function getFileName(path: string): string {
+  if (!path) return 'Unknown Model';
+  const parts = path.split('/');
+  const lastPart = parts[parts.length - 1];
+  return lastPart.split('?')[0]; // 移除查询参数
+}

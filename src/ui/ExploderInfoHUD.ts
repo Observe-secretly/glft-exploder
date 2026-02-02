@@ -5,8 +5,9 @@
 export class ExploderInfoHUD {
   public element: HTMLElement;
   private modelNameDisplay: HTMLSpanElement;
+  private faceCountDisplay: HTMLSpanElement;
 
-  constructor(container: HTMLElement | string, initialModelName: string = '加载中...') {
+  constructor(container: HTMLElement | string, initialModelName: string = '加载中...', initialFaceCount: number = 0) {
     // 1. 创建 HUD 容器
     this.element = document.createElement('div');
     this.element.className = 'exploder-info-hud';
@@ -57,25 +58,29 @@ export class ExploderInfoHUD {
     this.modelNameDisplay = document.createElement('span');
     this.modelNameDisplay.textContent = initialModelName;
     this.applyStyle(this.modelNameDisplay, `
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
       color: var(--exploder-text-main);
-      line-height: 1;
+      line-height: 1.2;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     `);
     
-    const subLabel = document.createElement('span');
-    subLabel.textContent = 'GLB 3D 资产已就绪';
-    this.applyStyle(subLabel, `
+    this.faceCountDisplay = document.createElement('span');
+    this.faceCountDisplay.textContent = `面数: ${initialFaceCount.toLocaleString()}`;
+    this.applyStyle(this.faceCountDisplay, `
       font-size: 10px;
       color: var(--exploder-text-muted);
       font-weight: 700;
-      margin-top: 6px;
+      margin-top: 4px;
       text-transform: uppercase;
       letter-spacing: 0.05em;
     `);
     
     content.appendChild(this.modelNameDisplay);
-    content.appendChild(subLabel);
+    content.appendChild(this.faceCountDisplay);
     nameCard.appendChild(icon);
     nameCard.appendChild(content);
     this.element.appendChild(nameCard);
@@ -118,8 +123,17 @@ export class ExploderInfoHUD {
     (target || document.body).appendChild(this.element);
   }
 
+  public update(name: string, faceCount: number): void {
+    this.modelNameDisplay.textContent = name;
+    this.faceCountDisplay.textContent = `面数: ${faceCount.toLocaleString()}`;
+  }
+
   public setModelName(name: string): void {
     this.modelNameDisplay.textContent = name;
+  }
+
+  public setFaceCount(count: number): void {
+    this.faceCountDisplay.textContent = `面数: ${count.toLocaleString()}`;
   }
 
   public dispose(): void {

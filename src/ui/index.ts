@@ -41,7 +41,9 @@ class CompositeUI implements ExploderUI {
     initialHelperVisible = true,
     models?: any[],
     initialModel?: string,
-    style?: any
+    style?: any,
+    modelName: string = '示例模型',
+    faceCount: number = 0
   ) {
     // 根元素使用容器
     this.element = container;
@@ -75,8 +77,7 @@ class CompositeUI implements ExploderUI {
     // 创建信息 HUD (左上角)
     // 如果 hudContainer 是视口容器，我们就在这里挂载信息 HUD
     if (hudContainer) {
-      const modelName = initialModel ? initialModel.split('/').pop() || initialModel : '示例模型';
-      this.infoHUD = new ExploderInfoHUD(hudContainer, modelName);
+      this.infoHUD = new ExploderInfoHUD(hudContainer, modelName, faceCount);
     }
   }
 
@@ -118,13 +119,15 @@ class CompositeUI implements ExploderUI {
   }
 
   updateModel(modelPath: string) {
-    if (this.infoHUD) {
-      const modelName = modelPath.split('/').pop() || modelPath;
-      this.infoHUD.setModelName(modelName);
-    }
-    // Panel 内部可能也需要更新选中的模型
+    // Note: This only updates the selection, the actual info update happens via updateInfo
     if ((this.panel as any).updateModel) {
       (this.panel as any).updateModel(modelPath);
+    }
+  }
+
+  updateInfo(name: string, faceCount: number) {
+    if (this.infoHUD) {
+      this.infoHUD.update(name, faceCount);
     }
   }
 
@@ -167,7 +170,9 @@ export function createUI(
   initialExposure = EXPLODER_CONSTANTS.EXPOSURE.DEFAULT,
   initialMode = ExplosionMode.RADIAL,
   initialAxial = new Vector3(0, 1, 0),
-  initialHelperVisible = true
+  initialHelperVisible = true,
+  modelName: string = '示例模型',
+  faceCount: number = 0
 ): ExploderUI | null {
   // 如果不创建 UI，则返回 null
   if (options.createUI === false) {
@@ -201,13 +206,23 @@ export function createUI(
         initialMode,
         initialAxial,
         initialHelperVisible,
-        options.models,
-        options.initialModel,
+        options.models as any[],
+        options.initialModel || (typeof options.model === 'string' ? options.model : ''),
+        options.uiStyle,
+        modelName,
+        faceCount
+      );
+    
+    case UIType.SLIDER:
+      return new ExploderSlider(
+        container,
+        onProgressChange,
+        initialProgress,
         options.uiStyle
       );
-    case UIType.SLIDER:
+    
     default:
-      return new ExploderSlider(container, onProgressChange, initialProgress, options.uiStyle);
+      return null;
   }
 }
 

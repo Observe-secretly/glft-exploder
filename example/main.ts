@@ -16,10 +16,10 @@ const exploder = new GLTFExploder({
   adaptModel: true,                 // 开启自适应
   // 配置多模型切换列表
   models: [
-    { label: '示例模型 01', value: 'models/example.glb' },
-    { label: '示例模型 02', value: 'models/example2.glb' },
-    { label: '示例模型 03', value: 'models/example3.glb' },
-    { label: '示例模型 04', value: 'models/example4.glb' }
+    { label: 'example.glb', value: 'models/example.glb' },
+    { label: 'example2.glb', value: 'models/example2.glb' },
+    { label: 'example3.glb', value: 'models/example3.glb' },
+    { label: 'example4.glb', value: 'models/example4.glb' }
   ]
 });
 

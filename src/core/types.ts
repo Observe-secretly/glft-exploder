@@ -199,6 +199,8 @@ export interface ExploderUI {
   updateAxialVector?(vector: Vector3): void;
   /** 更新模型信息 */
   updateModel?(modelPath: string): void;
+  /** 更新模型展示信息（名称和面数） */
+  updateInfo?(name: string, faceCount: number): void;
   /** 更新辅助显示状态 */
   updateHelperVisibility?(visible: boolean): void;
   /** 释放资源 */

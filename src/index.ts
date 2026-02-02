@@ -5,6 +5,7 @@ import './ui/base.css';
 import { ExploderCore } from './core';
 import { ExploderUI, ExploderOptions, ExplosionMode, ModelChangeCallback, HelperVisibilityChangeCallback, EXPLODER_CONSTANTS, ProgressChangeCallback } from './core/types';
 import { createUI } from './ui';
+import { calculateFaceCount, getFileName } from './core/utils';
 
 /**
  * GLTFExploder 类
@@ -140,6 +141,15 @@ export class GLTFExploder {
   private initCore(model: Object3D, scene: Scene, camera: Camera, renderer: WebGLRenderer, options: ExploderOptions): void {
     this.core = new ExploderCore(model, scene, camera, renderer, options);
     
+    // 计算面数和获取名称
+    const faceCount = calculateFaceCount(model);
+    let modelName = 'Unknown Model';
+    if (typeof options.model === 'string') {
+      modelName = getFileName(options.model);
+    } else if (model.name) {
+      modelName = model.name;
+    }
+
     if (options.createUI !== false) {
       this.ui = createUI(
         options,
@@ -155,7 +165,9 @@ export class GLTFExploder {
         renderer.toneMappingExposure,
         this.core.getMode(),
         this.core.getAxialVector(),
-        true
+        true,
+        modelName,
+        faceCount
       );
     }
   }
@@ -200,6 +212,12 @@ export class GLTFExploder {
         this.ui.update(EXPLODER_CONSTANTS.PROGRESS.DEFAULT);
         if (this.ui.updateModel) {
           this.ui.updateModel(modelPath);
+        }
+        // 更新模型名称和面数
+        if (this.ui.updateInfo) {
+          const faceCount = calculateFaceCount(newModel);
+          const name = getFileName(modelPath);
+          this.ui.updateInfo(name, faceCount);
         }
       }
     });
