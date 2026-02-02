@@ -81,13 +81,19 @@ loader.load('model.glb', (gltf) => {
 
 | 参数 | 类型 | 默认值 | 说明 |
 | :--- | :--- | :--- | :--- |
-| `viewport` | `string` | `undefined` | **(自动模式必填)** 3D 容器的 CSS 选择器。 |
-| `model` | `string | THREE.Object3D` | `undefined` | 模型路径 (自动模式) 或模型对象 (手动模式)。 |
-| `createUI` | `boolean` | `true` | 是否自动创建并显示 UI 控制面板。 |
-| `uiType` | `string` | `'panel'` | UI 类型：`'panel'` (完整面板) 或 `'slider'` (仅进度条)。 |
+| `viewport` | `string` | `undefined` | **(UI模式必填)** 3D 容器的 CSS 选择器。 |
+| `model` | `string | THREE.Object3D` | `undefined` | 模型相对路径|
+| `modelUrl` | `string` | `undefined` | **(可选)** 网络模型 URL。优先级高于 `model`。 |
+| `showUpload` | `boolean` | `false` | **(可选)** 是否在控制面板中显示本地上传按钮。 |
+| `wheelControlExplosion` | `boolean` | `false` | **(可选)** 是否开启鼠标滚轮控制爆炸进度（开启后将禁用鼠标缩放功能）。 |
+| `multiplier` | `number` | `1.0` | **(可选)** 爆炸系数，决定组件分离的距离。 |
+| `createUI` | `boolean` | `true` | 是否自动创建 UI 控件。 |
+| `showPanel` | `boolean` | `true` | **(可选)** 当 `createUI` 为 `true` 时，是否显示控制面板（包含设置、模式切换等）。 |
+| `showProgress` | `boolean` | `true` | **(可选)** 当 `createUI` 为 `true` 时，是否显示底部进度条。 |
+| `uiType` | `string` | `'panel'` | UI 类型：`'panel'` (复合面板) 或 `'slider'` (仅极简进度条)。 |
 | `adaptModel` | `boolean` | `false` | 加载模型后是否自动调整相机位置以完整显示模型。 |
 | `maxDistance` | `number` | `2.0` | 爆炸的最大位移倍率，数值越大拆得越散。 |
-| `mode` | `ExplosionMode` | `RADIAL` | 初始的爆炸算法模式。 |
+| `mode` | `ExplosionMode` | `RADIAL` | 初始的爆炸算法模式，可选值：<br>`RADIAL` 标准径向<br>`AXIAL` 轴向分层<br>`SIZE_WEIGHTED` 尺寸加权<br>`HIERARCHICAL` 层级树<br>`FORCE_FIELD` 力场模式 |
 | `axialVector` | `THREE.Vector3` | `(0, 1, 0)` | 轴向模式下的位移方向。 |
 | `onModelChange` | `Function` | `undefined` | 当在 UI 中切换模型时的回调函数。 |
 

@@ -19,8 +19,8 @@ export enum UIType {
  */
 class CompositeUI implements ExploderUI {
   public element: HTMLElement;
-  private panel: ExploderPanel;
-  private hud: ExploderHUD;
+  private panel?: ExploderPanel;
+  private hud?: ExploderHUD;
   private infoHUD?: ExploderInfoHUD;
 
   constructor(
@@ -42,105 +42,113 @@ class CompositeUI implements ExploderUI {
     models?: any[],
     initialModel?: string,
     style?: any,
+    showUpload = false,
     modelName: string = '示例模型',
-    faceCount: number = 0
+    faceCount: number = 0,
+    showPanel = true,
+    showProgress = true
   ) {
     // 根元素使用容器
     this.element = container;
 
     // 创建面板
-    this.panel = new ExploderPanel(
-      container,
-      onMultiplierChange,
-      onExposureChange,
-      onModeChange,
-      onAxialChange,
-      onModelChange,
-      onHelperVisibilityChange,
-      onReset,
-      initialMultiplier,
-      initialExposure,
-      initialMode,
-      initialAxial,
-      initialHelperVisible,
-      models,
-      initialModel,
-      style
-    );
+    if (showPanel) {
+      this.panel = new ExploderPanel(
+        container,
+        onMultiplierChange,
+        onExposureChange,
+        onModeChange,
+        onAxialChange,
+        onModelChange,
+        onHelperVisibilityChange,
+        onReset,
+        initialMultiplier,
+        initialExposure,
+        initialMode,
+        initialAxial,
+        initialHelperVisible,
+        models,
+        initialModel,
+        style,
+        showUpload
+      );
+    }
 
     // 创建 HUD (进度条)
-    this.hud = new ExploderHUD(
-      container,
-      onProgressChange,
-      initialProgress
-    );
+    if (showProgress) {
+      this.hud = new ExploderHUD(
+        container,
+        onProgressChange,
+        initialProgress
+      );
+    }
 
     // 创建信息 HUD (左上角)
-    this.infoHUD = new ExploderInfoHUD(container, modelName, faceCount);
+    if (showPanel) {
+      this.infoHUD = new ExploderInfoHUD(container, modelName, faceCount);
+    }
   }
 
   show() {
-    this.panel.show();
-    this.hud.show();
+    this.panel?.show();
+    this.hud?.show();
     this.infoHUD?.element && (this.infoHUD.element.style.display = 'flex');
   }
 
   hide() {
-    this.panel.hide();
-    this.hud.hide();
+    this.panel?.hide();
+    this.hud?.hide();
     this.infoHUD?.element && (this.infoHUD.element.style.display = 'none');
   }
 
   update(progress: number) {
-    this.panel.update(progress);
-    this.hud.update(progress);
+    this.panel?.update(progress);
+    this.hud?.update(progress);
   }
 
   updateMultiplier(multiplier: number) {
-    this.panel.updateMultiplier(multiplier);
+    this.panel?.updateMultiplier(multiplier);
   }
 
   updateExposure(exposure: number) {
-    this.panel.updateExposure(exposure);
+    this.panel?.updateExposure(exposure);
   }
 
   updateMode(mode: ExplosionMode) {
-    this.panel.updateMode(mode);
+    this.panel?.updateMode(mode);
   }
 
   updateAxialVector(vector: Vector3) {
-    this.panel.updateAxialVector(vector);
+    this.panel?.updateAxialVector(vector);
   }
 
   updateHelperVisibility(visible: boolean) {
-    this.panel.updateHelperVisibility(visible);
+    this.panel?.updateHelperVisibility(visible);
   }
 
   updateModel(modelPath: string) {
     // Note: This only updates the selection, the actual info update happens via updateInfo
-    if ((this.panel as any).updateModel) {
+    if (this.panel && (this.panel as any).updateModel) {
       (this.panel as any).updateModel(modelPath);
     }
   }
 
   updateInfo(name: string, faceCount: number) {
-    if (this.infoHUD) {
-      this.infoHUD.update(name, faceCount);
-    }
+    this.infoHUD?.update(name, faceCount);
   }
 
   reset() {
-    this.panel.updateMultiplier(EXPLODER_CONSTANTS.MULTIPLIER.DEFAULT);
-    this.panel.updateExposure(EXPLODER_CONSTANTS.EXPOSURE.DEFAULT);
-    this.panel.updateMode(ExplosionMode.RADIAL);
-    this.panel.updateAxialVector(new Vector3(0, 1, 0));
-    this.panel.updateHelperVisibility(true);
-    this.hud.update(EXPLODER_CONSTANTS.PROGRESS.DEFAULT);
+    this.panel?.updateMultiplier(EXPLODER_CONSTANTS.MULTIPLIER.DEFAULT);
+    this.panel?.updateExposure(EXPLODER_CONSTANTS.EXPOSURE.DEFAULT);
+    this.panel?.updateMode(ExplosionMode.RADIAL);
+    this.panel?.updateAxialVector(new Vector3(0, 1, 0));
+    this.panel?.updateHelperVisibility(true);
+    this.hud?.update(EXPLODER_CONSTANTS.PROGRESS.DEFAULT);
   }
 
   dispose() {
-    this.panel.dispose();
-    this.hud.dispose();
+    this.panel?.dispose();
+    this.hud?.dispose();
     this.infoHUD?.dispose();
   }
 }
@@ -224,8 +232,11 @@ export function createUI(
         options.models as any[],
         options.initialModel || (typeof options.model === 'string' ? options.model : ''),
         options.uiStyle,
+        options.showUpload,
         modelName,
-        faceCount
+        faceCount,
+        options.showPanel ?? true,
+        options.showProgress ?? true
       );
     
     case UIType.SLIDER:

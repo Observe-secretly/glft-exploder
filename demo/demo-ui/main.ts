@@ -15,8 +15,11 @@ import { GLTFExploder } from '../../dist/gltf-exploder.esm.js';
 const exploder = new GLTFExploder({
   viewport: '#scene-container',     // 3D 渲染占位的容器选择器
   model: 'example2.glb',            // 直接传入模型路径
-  createUI: true,               // 禁用内置 UI
-  uiType: 'panel',                  // 使用侧边面板类型
+  createUI: true,               // 开启内置 UI
+  showPanel: true,              // 显示控制面板
+  showProgress: true,           // 显示进度条
+  wheelControlExplosion: true,   // 开启滚轮控制爆炸
+  uiType: 'panel',              // 使用侧边面板类型
   adaptModel: true                  // 开启模型自动缩放居中，确保视觉效果最佳
 });
 

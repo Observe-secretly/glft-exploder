@@ -1,4 +1,4 @@
-import { GLTFExploder } from '../src';
+import { GLTFExploder } from '../src/index';
 
 /**
  * 核心示例 (极简模式)
@@ -11,6 +11,7 @@ const exploder = new GLTFExploder({
   model: 'models/example.glb',      // 初始展示模型
   uiType: 'panel',                  // 使用侧边面板
   adaptModel: true,                 // 开启自适应
+  showUpload: true,                 // 开启本地上传功能
   // 如果不提供 models 数组，面板中将不会显示“模型资源”区块
   // 但用户希望在 example 中只保留本地上传，我们需要调整 UI 逻辑或配置
   models: [] 

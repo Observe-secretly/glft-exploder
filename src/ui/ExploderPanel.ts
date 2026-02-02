@@ -45,7 +45,8 @@ export class ExploderPanel implements ExploderUI {
     initialHelperVisible = true,
     models: string[] | ModelOption[] = [],
     initialModel?: string,
-    style: Partial<ExploderUIStyle> = {}
+    style: Partial<ExploderUIStyle> = {},
+    showUpload = false
   ) {
     this.onMultiplierChange = onMultiplierChange;
     this.onExposureChange = onExposureChange;
@@ -65,7 +66,10 @@ export class ExploderPanel implements ExploderUI {
     const header = document.createElement('div');
     this.applyStyle(header, this.styles.sectionHeader);
     header.innerHTML = `
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2a10 10 0 0 1 10 10 10 10 0 0 1-10 10 10 10 0 0 1-10-10 10 10 0 0 1 10-10z"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.72V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.17a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+        <circle cx="12" cy="12" r="3"/>
+      </svg>
       <h3 style="${this.styles.title}">参数控制面板</h3>
     `;
     this.element.appendChild(header);
@@ -75,12 +79,13 @@ export class ExploderPanel implements ExploderUI {
     this.element.appendChild(contentWrapper);
 
     // 3. 模型资源
-    // 在 example 中，如果 models 为空数组，我们依然希望显示上传按钮
-    const showModelSection = (models && models.length > 0) || true; // 强制显示以支持本地上传
+    const hasModels = models && models.length > 0;
+    const showModelSection = hasModels || showUpload;
+    
     if (showModelSection) {
-      const modelSection = this.createSection('模型资源', '上传本地 3D 资产进行预览');
+      const modelSection = this.createSection('模型资源', hasModels ? '选择或上传 3D 资产' : '上传本地 3D 资产进行预览');
       
-      if (models && models.length > 0) {
+      if (hasModels) {
         const select = document.createElement('select');
         this.modelSelect = select;
         select.className = 'exploder-select';
@@ -98,37 +103,39 @@ export class ExploderPanel implements ExploderUI {
       }
 
       // 本地上传功能
-      const uploadBtn = document.createElement('div');
-      this.applyStyle(uploadBtn, `
-        margin-top: 12px;
-        padding: 10px;
-        background: var(--exploder-bg-sub);
-        border: 1px dashed var(--exploder-border);
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        cursor: pointer;
-        transition: all 0.2s;
-      `);
-      uploadBtn.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--exploder-text-sub)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-        <span style="font-size: 11px; font-weight: 600; color: var(--exploder-text-sub);">上传本地 GLB</span>
-        <input type="file" accept=".glb,.gltf" style="display: none;">
-      `;
-      const fileInput = uploadBtn.querySelector('input') as HTMLInputElement;
-      uploadBtn.onclick = () => fileInput.click();
-      fileInput.onchange = (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (file) {
-          const url = URL.createObjectURL(file);
-          // 我们在这里伪造一个 ModelChange 事件，但传递的是 Blob URL
-          this.onModelChange?.(url);
-        }
-      };
-      
-      modelSection.appendChild(uploadBtn);
+      if (showUpload) {
+        const uploadBtn = document.createElement('div');
+        this.applyStyle(uploadBtn, `
+          margin-top: ${hasModels ? '12px' : '0'};
+          padding: 10px;
+          background: var(--exploder-bg-sub);
+          border: 1px dashed var(--exploder-border);
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          cursor: pointer;
+          transition: all 0.2s;
+        `);
+        uploadBtn.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--exploder-text-sub)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          <span style="font-size: 11px; font-weight: 600; color: var(--exploder-text-sub);">上传本地 GLB</span>
+          <input type="file" accept=".glb,.gltf" style="display: none;">
+        `;
+        const fileInput = uploadBtn.querySelector('input') as HTMLInputElement;
+        uploadBtn.onclick = () => fileInput.click();
+        fileInput.onchange = (e) => {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          if (file) {
+            const url = URL.createObjectURL(file);
+            // 我们在这里伪造一个 ModelChange 事件，但传递的是 Blob URL
+            this.onModelChange?.(url);
+          }
+        };
+        
+        modelSection.appendChild(uploadBtn);
+      }
       contentWrapper.appendChild(modelSection);
     }
 

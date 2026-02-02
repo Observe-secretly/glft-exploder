@@ -89,6 +89,11 @@ export class GLTFExploder {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
 
+    // 禁用缩放（如果开启了滚轮控制爆炸）
+    if (this.options.wheelControlExplosion) {
+      this.controls.enableZoom = false;
+    }
+
     // 3. 添加灯光
     this.scene.add(new AmbientLight(0xffffff, 0.6));
     const sun = new DirectionalLight(0xffffff, 1);
@@ -176,6 +181,27 @@ export class GLTFExploder {
         faceCount
       );
     }
+
+    // 监听滚轮事件（如果开启了滚轮控制爆炸）
+    if (this.options.wheelControlExplosion && this.renderer) {
+      this.renderer.domElement.addEventListener('wheel', this.onWheel.bind(this), { passive: false });
+    }
+  }
+
+  /**
+   * 滚轮事件处理
+   */
+  private onWheel(event: WheelEvent): void {
+    if (!this.core) return;
+    
+    // 阻止默认缩放行为
+    event.preventDefault();
+
+    const delta = event.deltaY > 0 ? 0.05 : -0.05;
+    const currentProgress = this.core.getProgress();
+    const newProgress = Math.min(1, Math.max(0, currentProgress + delta));
+    
+    this.setProgress(newProgress);
   }
 
   /**

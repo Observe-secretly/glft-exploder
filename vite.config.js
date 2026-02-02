@@ -7,7 +7,10 @@ export default defineConfig({
   publicDir: 'public',
   server: {
     open: true,
-    port: 3000
+    port: 3000,
+    fs: {
+      allow: ['..']
+    }
   },
   build: {
     outDir: '../dist-example',

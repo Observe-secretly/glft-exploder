@@ -5,7 +5,7 @@ import { ExploderUIStyle } from '../core/types';
  * @param style 样式配置
  * @returns CSS 样式对象
  */
-export function createStyles(style: Partial<ExploderUIStyle> = {}): Record<string, string> {
+export function createStyles(_style: Partial<ExploderUIStyle> = {}): Record<string, string> {
   return {
     container: `
       position: absolute;

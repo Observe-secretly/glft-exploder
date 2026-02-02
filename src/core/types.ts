@@ -156,6 +156,10 @@ export interface ExploderOptions {
   duration?: number;
   /** 是否自动创建 UI */
   createUI?: boolean;
+  /** 当 createUI 为 true 时，是否显示控制面板 (默认为 true) */
+  showPanel?: boolean;
+  /** 当 createUI 为 true 时，是否显示进度条 (默认为 true) */
+  showProgress?: boolean;
   /** 是否自动缩放和居中模型（自适应视图） */
   adaptModel?: boolean;
   /** 模型对象 (Object3D) 或模型路径 (string) */
@@ -164,7 +168,11 @@ export interface ExploderOptions {
   modelUrl?: string;
   /** 3D 视口容器（全自动模式下必填，可以是选择器或 HTMLElement） */
   viewport?: HTMLElement | string;
-  /** UI 类型 */
+  /** 是否在控制面板中显示本地上传按钮 (默认为 false) */
+  showUpload?: boolean;
+  /** 是否开启鼠标滚轮控制爆炸进度 (默认为 false，开启后将禁用相机缩放) */
+  wheelControlExplosion?: boolean;
+  /** 爆炸系数 (0-10) */
   uiType?: 'slider' | 'panel';
   /** UI 样式配置 */
   uiStyle?: ExploderUIStyle;
