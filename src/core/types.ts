@@ -63,6 +63,11 @@ export interface ExploderUIStyle {
 export type ModelChangeCallback = (modelPath: string) => void;
 
 /**
+ * 重置回调函数
+ */
+export type ResetCallback = () => void;
+
+/**
  * 模型选项接口
  */
 export interface ModelOption {
@@ -155,12 +160,10 @@ export interface ExploderOptions {
   adaptModel?: boolean;
   /** 模型对象 (Object3D) 或模型路径 (string) */
   model?: Object3D | string;
+  /** 网络模型 URL (优先级高于 model) */
+  modelUrl?: string;
   /** 3D 视口容器（全自动模式下必填，可以是选择器或 HTMLElement） */
   viewport?: HTMLElement | string;
-  /** UI 容器（控制面板容器，可以是选择器或 HTMLElement） */
-  container?: HTMLElement | string;
-  /** HUD 容器（播放进度条容器，如果不提供则默认放在 body 或 viewport） */
-  hudContainer?: HTMLElement | string;
   /** UI 类型 */
   uiType?: 'slider' | 'panel';
   /** UI 样式配置 */
@@ -203,6 +206,8 @@ export interface ExploderUI {
   updateInfo?(name: string, faceCount: number): void;
   /** 更新辅助显示状态 */
   updateHelperVisibility?(visible: boolean): void;
+  /** 重置 UI 状态 */
+  reset?(): void;
   /** 释放资源 */
   dispose(): void;
 }

@@ -38,7 +38,6 @@ const exploder = new GLTFExploder({
     viewport: '#scene-container', // 3D 画布容器 ID
     model: './example.glb',        // 模型路径
     createUI: true,                // 开启内置控制面板
-    container: '#ui-container',    // UI 挂载点 (可选)
     adaptModel: true               // 自动适配相机视角
 });
 ```
@@ -86,8 +85,6 @@ loader.load('model.glb', (gltf) => {
 | `model` | `string | THREE.Object3D` | `undefined` | 模型路径 (自动模式) 或模型对象 (手动模式)。 |
 | `createUI` | `boolean` | `true` | 是否自动创建并显示 UI 控制面板。 |
 | `uiType` | `string` | `'panel'` | UI 类型：`'panel'` (完整面板) 或 `'slider'` (仅进度条)。 |
-| `container` | `string | HTMLElement` | `document.body` | UI 面板挂载的容器。 |
-| `hudContainer` | `string | HTMLElement` | `viewport` | 顶部信息栏 (HUD) 挂载的容器。 |
 | `adaptModel` | `boolean` | `false` | 加载模型后是否自动调整相机位置以完整显示模型。 |
 | `maxDistance` | `number` | `2.0` | 爆炸的最大位移倍率，数值越大拆得越散。 |
 | `mode` | `ExplosionMode` | `RADIAL` | 初始的爆炸算法模式。 |

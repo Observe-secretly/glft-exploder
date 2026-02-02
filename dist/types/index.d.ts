@@ -58,12 +58,10 @@ interface ExploderOptions {
     adaptModel?: boolean;
     /** 模型对象 (Object3D) 或模型路径 (string) */
     model?: Object3D | string;
+    /** 网络模型 URL (优先级高于 model) */
+    modelUrl?: string;
     /** 3D 视口容器（全自动模式下必填，可以是选择器或 HTMLElement） */
     viewport?: HTMLElement | string;
-    /** UI 容器（控制面板容器，可以是选择器或 HTMLElement） */
-    container?: HTMLElement | string;
-    /** HUD 容器（播放进度条容器，如果不提供则默认放在 body 或 viewport） */
-    hudContainer?: HTMLElement | string;
     /** UI 类型 */
     uiType?: 'slider' | 'panel';
     /** UI 样式配置 */

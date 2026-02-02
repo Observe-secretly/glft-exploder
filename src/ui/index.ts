@@ -25,7 +25,6 @@ class CompositeUI implements ExploderUI {
 
   constructor(
     container: HTMLElement,
-    hudContainer: HTMLElement,
     onProgressChange: ProgressChangeCallback,
     onMultiplierChange: MultiplierChangeCallback,
     onExposureChange?: ExposureChangeCallback,
@@ -33,6 +32,7 @@ class CompositeUI implements ExploderUI {
     onAxialChange?: AxialChangeCallback,
     onModelChange?: ModelChangeCallback,
     onHelperVisibilityChange?: HelperVisibilityChangeCallback,
+    onReset?: () => void,
     initialProgress = EXPLODER_CONSTANTS.PROGRESS.DEFAULT,
     initialMultiplier = EXPLODER_CONSTANTS.MULTIPLIER.DEFAULT,
     initialExposure = EXPLODER_CONSTANTS.EXPOSURE.DEFAULT,
@@ -57,6 +57,7 @@ class CompositeUI implements ExploderUI {
       onAxialChange,
       onModelChange,
       onHelperVisibilityChange,
+      onReset,
       initialMultiplier,
       initialExposure,
       initialMode,
@@ -69,16 +70,13 @@ class CompositeUI implements ExploderUI {
 
     // 创建 HUD (进度条)
     this.hud = new ExploderHUD(
-      hudContainer,
+      container,
       onProgressChange,
       initialProgress
     );
 
     // 创建信息 HUD (左上角)
-    // 如果 hudContainer 是视口容器，我们就在这里挂载信息 HUD
-    if (hudContainer) {
-      this.infoHUD = new ExploderInfoHUD(hudContainer, modelName, faceCount);
-    }
+    this.infoHUD = new ExploderInfoHUD(container, modelName, faceCount);
   }
 
   show() {
@@ -131,6 +129,15 @@ class CompositeUI implements ExploderUI {
     }
   }
 
+  reset() {
+    this.panel.updateMultiplier(EXPLODER_CONSTANTS.MULTIPLIER.DEFAULT);
+    this.panel.updateExposure(EXPLODER_CONSTANTS.EXPOSURE.DEFAULT);
+    this.panel.updateMode(ExplosionMode.RADIAL);
+    this.panel.updateAxialVector(new Vector3(0, 1, 0));
+    this.panel.updateHelperVisibility(true);
+    this.hud.update(EXPLODER_CONSTANTS.PROGRESS.DEFAULT);
+  }
+
   dispose() {
     this.panel.dispose();
     this.hud.dispose();
@@ -165,6 +172,7 @@ export function createUI(
   onAxialChange?: AxialChangeCallback,
   onModelChange?: ModelChangeCallback,
   onHelperVisibilityChange?: HelperVisibilityChangeCallback,
+  onReset?: () => void,
   initialProgress = EXPLODER_CONSTANTS.PROGRESS.DEFAULT,
   initialMultiplier = EXPLODER_CONSTANTS.MULTIPLIER.DEFAULT,
   initialExposure = EXPLODER_CONSTANTS.EXPOSURE.DEFAULT,
@@ -180,19 +188,25 @@ export function createUI(
   }
   
   // 获取容器元素
-  const container = options.container ? getContainer(options.container) : document.body;
+  const viewport = options.viewport ? getContainer(options.viewport) : null;
+  const container = viewport || document.body;
   
+  // 确保容器有定位属性，以便 UI 能够正确相对于其定位
+  if (container instanceof HTMLElement) {
+    const style = window.getComputedStyle(container);
+    if (style.position === 'static') {
+      container.style.position = 'relative';
+    }
+  }
+
   // 确定 UI 类型
   const uiType = options.uiType || UIType.SLIDER;
   
   // 创建对应类型的 UI
   switch (uiType) {
     case UIType.PANEL:
-      // 如果是面板模式，默认 HUD 放在 body (除非指定了 hudContainer)
-      const hudContainer = options.hudContainer ? getContainer(options.hudContainer) : document.body;
       return new CompositeUI(
         container,
-        hudContainer,
         onProgressChange,
         onMultiplierChange,
         onExposureChange,
@@ -200,6 +214,7 @@ export function createUI(
         onAxialChange,
         onModelChange,
         onHelperVisibilityChange,
+        onReset,
         initialProgress,
         initialMultiplier,
         initialExposure,

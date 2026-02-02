@@ -66,7 +66,7 @@ export class ExploderHUD {
     `);
     
     const label = document.createElement('span');
-    label.textContent = '当前播放进度';
+    label.textContent = '当前爆炸进度';
     this.applyStyle(label, `
       font-size: 10px;
       font-weight: 700;

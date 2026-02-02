@@ -26,6 +26,7 @@ export class ExploderPanel implements ExploderUI {
   private onAxialChange?: AxialChangeCallback;
   private onModelChange?: ModelChangeCallback;
   private onHelperVisibilityChange?: HelperVisibilityChangeCallback;
+  private onReset?: () => void;
   private styles: Record<string, string>;
   
   constructor(
@@ -36,6 +37,7 @@ export class ExploderPanel implements ExploderUI {
     onAxialChange?: AxialChangeCallback,
     onModelChange?: ModelChangeCallback,
     onHelperVisibilityChange?: HelperVisibilityChangeCallback,
+    onReset?: () => void,
     initialMultiplier = EXPLODER_CONSTANTS.MULTIPLIER.DEFAULT,
     initialExposure = EXPLODER_CONSTANTS.EXPOSURE.DEFAULT,
     initialMode = ExplosionMode.RADIAL,
@@ -51,6 +53,7 @@ export class ExploderPanel implements ExploderUI {
     this.onAxialChange = onAxialChange;
     this.onModelChange = onModelChange;
     this.onHelperVisibilityChange = onHelperVisibilityChange;
+    this.onReset = onReset;
     this.styles = createStyles(style);
     
     // 1. 创建面板容器
@@ -72,28 +75,66 @@ export class ExploderPanel implements ExploderUI {
     this.element.appendChild(contentWrapper);
 
     // 3. 模型资源
-    if (models && models.length > 0) {
-      const modelSection = this.createSection('模型资源', '选择需要展示的 3D 资产');
-      const select = document.createElement('select');
-      this.modelSelect = select;
-      select.className = 'exploder-select';
-      this.applyStyle(select, this.styles.select);
+    // 在 example 中，如果 models 为空数组，我们依然希望显示上传按钮
+    const showModelSection = (models && models.length > 0) || true; // 强制显示以支持本地上传
+    if (showModelSection) {
+      const modelSection = this.createSection('模型资源', '上传本地 3D 资产进行预览');
       
-      models.forEach(model => {
-        const option = document.createElement('option');
-        const modelPath = typeof model === 'string' ? model : model.value;
-        option.value = modelPath;
-        option.textContent = typeof model === 'string' ? (model.split('/').pop() || model) : model.label;
-        if (modelPath === initialModel) option.selected = true;
-        select.appendChild(option);
-      });
-      modelSection.appendChild(select);
+      if (models && models.length > 0) {
+        const select = document.createElement('select');
+        this.modelSelect = select;
+        select.className = 'exploder-select';
+        this.applyStyle(select, this.styles.select);
+        
+        models.forEach(model => {
+          const option = document.createElement('option');
+          const modelPath = typeof model === 'string' ? model : model.value;
+          option.value = modelPath;
+          option.textContent = typeof model === 'string' ? (model.split('/').pop() || model) : model.label;
+          if (modelPath === initialModel) option.selected = true;
+          select.appendChild(option);
+        });
+        modelSection.appendChild(select);
+      }
+
+      // 本地上传功能
+      const uploadBtn = document.createElement('div');
+      this.applyStyle(uploadBtn, `
+        margin-top: 12px;
+        padding: 10px;
+        background: var(--exploder-bg-sub);
+        border: 1px dashed var(--exploder-border);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+      `);
+      uploadBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--exploder-text-sub)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+        <span style="font-size: 11px; font-weight: 600; color: var(--exploder-text-sub);">上传本地 GLB</span>
+        <input type="file" accept=".glb,.gltf" style="display: none;">
+      `;
+      const fileInput = uploadBtn.querySelector('input') as HTMLInputElement;
+      uploadBtn.onclick = () => fileInput.click();
+      fileInput.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+          const url = URL.createObjectURL(file);
+          // 我们在这里伪造一个 ModelChange 事件，但传递的是 Blob URL
+          this.onModelChange?.(url);
+        }
+      };
+      
+      modelSection.appendChild(uploadBtn);
       contentWrapper.appendChild(modelSection);
     }
 
     // 4. 爆炸系数
-    const multiplierSection = this.createSection('爆炸系数', '调整组件之间分离的距离倍数');
-    const multiplierLabelWrap = this.createLabelWrapper('分离倍数');
+    const multiplierSection = this.createSection('', '调整组件之间分离的距离倍数');
+    const multiplierLabelWrap = this.createLabelWrapper('爆炸系数(分离倍数)');
     this.multiplierDisplay = document.createElement('span');
     this.multiplierDisplay.className = 'exploder-value';
     this.applyStyle(this.multiplierDisplay, this.styles.value);
@@ -113,8 +154,8 @@ export class ExploderPanel implements ExploderUI {
     contentWrapper.appendChild(multiplierSection);
 
     // 6. 渲染亮度
-    const exposureSection = this.createSection('环境亮度', '调整 3D 场景的光照表现');
-    const exposureLabelWrap = this.createLabelWrapper('渲染亮度');
+    const exposureSection = this.createSection('', '调整 3D 场景的光照表现');
+    const exposureLabelWrap = this.createLabelWrapper('环境亮度');
     this.exposureDisplay = document.createElement('span');
     this.exposureDisplay.className = 'exploder-value';
     this.applyStyle(this.exposureDisplay, this.styles.value);
@@ -235,7 +276,7 @@ export class ExploderPanel implements ExploderUI {
     };
     this.helperToggle.onchange = (e) => this.onHelperVisibilityChange?.((e.target as HTMLInputElement).checked);
     this.resetButton.onclick = () => {
-      // 重置逻辑由外部控制或在这里补充其他参数重置
+      this.onReset?.();
     };
 
     // 挂载
@@ -243,17 +284,24 @@ export class ExploderPanel implements ExploderUI {
     (target || document.body).appendChild(this.element);
   }
 
-  private createSection(title: string, hint: string): HTMLElement {
+  private createSection(title?: string, hint?: string): HTMLElement {
     const sec = document.createElement('section');
     this.applyStyle(sec, this.styles.section);
-    const label = document.createElement('label');
-    this.applyStyle(label, this.styles.label);
-    label.textContent = title;
-    sec.appendChild(label);
-    const hintEl = document.createElement('p');
-    this.applyStyle(hintEl, this.styles.hint);
-    hintEl.textContent = hint;
-    sec.appendChild(hintEl);
+    
+    if (title) {
+      const label = document.createElement('label');
+      this.applyStyle(label, this.styles.label);
+      label.textContent = title;
+      sec.appendChild(label);
+    }
+    
+    if (hint) {
+      const hintEl = document.createElement('p');
+      this.applyStyle(hintEl, this.styles.hint);
+      hintEl.textContent = hint;
+      sec.appendChild(hintEl);
+    }
+    
     return sec;
   }
 

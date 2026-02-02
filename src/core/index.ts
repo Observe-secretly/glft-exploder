@@ -71,9 +71,7 @@ export class ExploderCore {
       duration: options.duration ?? EXPLODER_CONSTANTS.DEFAULT_DURATION,
       createUI: options.createUI ?? true,
       viewport: options.viewport ?? document.body,
-      container: options.container ?? document.body,
       uiType: options.uiType ?? 'slider',
-      hudContainer: options.hudContainer ?? document.body,
       uiStyle: options.uiStyle ?? {
         width: '200px',
         height: '30px',
@@ -84,6 +82,7 @@ export class ExploderCore {
       axialVector: options.axialVector ?? new Vector3(0, 1, 0),
       adaptModel: options.adaptModel ?? true,
       model: options.model ?? model,
+      modelUrl: options.modelUrl || '',
       models: options.models ?? [],
       initialModel: options.initialModel ?? ''
     };

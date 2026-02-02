@@ -55,7 +55,7 @@ export class GLTFExploder {
    * 初始化全自动模式
    */
   private async initializeAutoMode(): Promise<void> {
-    const { viewport, model } = this.options;
+    const { viewport, model, modelUrl } = this.options;
     
     // 1. 获取视口容器
     const containerElement = typeof viewport === 'string' ? document.querySelector(viewport) as HTMLElement : viewport as HTMLElement;
@@ -95,10 +95,13 @@ export class GLTFExploder {
     sun.position.set(5, 10, 7.5);
     this.scene.add(sun);
 
-    // 4. 加载模型或使用传入的模型
-    if (typeof model === 'string') {
+    // 4. 加载模型
+    // 优先级: modelUrl > model(string) > model(Object3D)
+    const finalUrl = modelUrl || (typeof model === 'string' ? model : null);
+    
+    if (finalUrl) {
       const loader = new GLTFLoader();
-      loader.load(model, (gltf) => {
+      loader.load(finalUrl, (gltf) => {
         const loadedModel = gltf.scene;
         this.scene?.add(loadedModel);
         this.initCore(loadedModel, this.scene!, this.camera!, this.renderer!, this.options);
@@ -144,7 +147,9 @@ export class GLTFExploder {
     // 计算面数和获取名称
     const faceCount = calculateFaceCount(model);
     let modelName = 'Unknown Model';
-    if (typeof options.model === 'string') {
+    if (this.options.modelUrl) {
+      modelName = getFileName(this.options.modelUrl);
+    } else if (typeof options.model === 'string') {
       modelName = getFileName(options.model);
     } else if (model.name) {
       modelName = model.name;
@@ -160,6 +165,7 @@ export class GLTFExploder {
         this.setAxialVector.bind(this),
         this.handleModelChange.bind(this),
         this.handleHelperVisibilityChange.bind(this),
+        this.reset.bind(this),
         EXPLODER_CONSTANTS.PROGRESS.DEFAULT,
         EXPLODER_CONSTANTS.MULTIPLIER.DEFAULT,
         renderer.toneMappingExposure,
@@ -199,15 +205,15 @@ export class GLTFExploder {
         if (oldModel) this.scene?.remove(oldModel);
         this.core.dispose();
       }
-      
+
       // 2. 添加新模型
       const newModel = gltf.scene;
       this.scene?.add(newModel);
-      
+
       // 3. 重新初始化核心
       this.initCore(newModel, this.scene!, this.camera!, this.renderer!, this.options);
-      
-      // 4. 同步 UI (如果存在)
+
+      // 4. 更新 UI 状态
       if (this.ui) {
         this.ui.update(EXPLODER_CONSTANTS.PROGRESS.DEFAULT);
         if (this.ui.updateModel) {
@@ -216,9 +222,19 @@ export class GLTFExploder {
         // 更新模型名称和面数
         if (this.ui.updateInfo) {
           const faceCount = calculateFaceCount(newModel);
-          const name = getFileName(modelPath);
+          // 如果是 Blob URL (本地上传)，我们尝试获取文件名，或者显示 "Local File"
+          let name = 'Local File';
+          if (!modelPath.startsWith('blob:')) {
+            name = getFileName(modelPath);
+          }
           this.ui.updateInfo(name, faceCount);
         }
+      }
+
+      // 5. 如果是 Blob URL，释放它以防内存泄漏
+      if (modelPath.startsWith('blob:')) {
+        // 延迟释放，确保加载完成
+        setTimeout(() => URL.revokeObjectURL(modelPath), 1000);
       }
     });
   }
@@ -346,17 +362,38 @@ export class GLTFExploder {
    * 重置爆炸视图
    */
   public reset(): void {
+    // 1. 重置核心算法状态
     this.core?.reset();
     
-    // 更新 UI
+    // 2. 重置相机视角 (全自动模式)
+    if (this.controls && this.camera && this.options.adaptModel) {
+      this.controls.reset();
+      // 重新执行一次模型适配以确保视角正确
+      if (this.core) {
+        const model = (this.core as any).model;
+        if (model) {
+          // 这里我们简单地重置 controls 和 camera 到初始位置
+          this.camera.position.set(5, 5, 5);
+          this.camera.lookAt(0, 0, 0);
+          this.controls.target.set(0, 0, 0);
+          this.controls.update();
+        }
+      }
+    }
+
+    // 3. 重置渲染器参数
+    this.setExposure(EXPLODER_CONSTANTS.EXPOSURE.DEFAULT);
+
+    // 4. 重置 UI 状态
     if (this.ui) {
+      this.ui.reset?.();
+      // 显式调用各个更新方法以确保同步
       this.ui.update(EXPLODER_CONSTANTS.PROGRESS.DEFAULT);
-      if (this.ui.updateMultiplier) {
-        this.ui.updateMultiplier(EXPLODER_CONSTANTS.MULTIPLIER.DEFAULT);
-      }
-      if (this.ui.updateMode) {
-        this.ui.updateMode(ExplosionMode.RADIAL);
-      }
+      this.ui.updateMultiplier?.(EXPLODER_CONSTANTS.MULTIPLIER.DEFAULT);
+      this.ui.updateExposure?.(EXPLODER_CONSTANTS.EXPOSURE.DEFAULT);
+      this.ui.updateMode?.(ExplosionMode.RADIAL);
+      this.ui.updateAxialVector?.(new Vector3(0, 1, 0));
+      this.ui.updateHelperVisibility?.(true);
     }
   }
   
