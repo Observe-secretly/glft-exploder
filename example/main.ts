@@ -9,7 +9,6 @@ import { GLTFExploder } from '../src/index';
 const exploder = new GLTFExploder({
   viewport: '#scene-container',     // 3D 渲染占位的容器
   model: 'models/example.glb',      // 初始展示模型
-  uiType: 'panel',                  // 使用侧边面板
   adaptModel: true,                 // 开启自适应
   showUpload: true,                 // 开启本地上传功能
   // 如果不提供 models 数组，面板中将不会显示“模型资源”区块

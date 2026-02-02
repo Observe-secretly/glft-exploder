@@ -70,8 +70,6 @@ interface ExploderOptions {
     showUpload?: boolean;
     /** 是否开启鼠标滚轮控制爆炸进度 (默认为 false，开启后将禁用相机缩放) */
     wheelControlExplosion?: boolean;
-    /** 爆炸系数 (0-10) */
-    uiType?: 'slider' | 'panel';
     /** UI 样式配置 */
     uiStyle?: ExploderUIStyle;
     /** 爆炸方向计算策略 */
@@ -84,14 +82,6 @@ interface ExploderOptions {
     models?: string[] | ModelOption[];
     /** 初始选中的模型 */
     initialModel?: string;
-}
-
-/**
- * UI 类型
- */
-declare enum UIType {
-    SLIDER = "slider",
-    PANEL = "panel"
 }
 
 /**
@@ -217,4 +207,4 @@ declare class GLTFExploder {
     dispose(): void;
 }
 
-export { ExploderOptions, GLTFExploder, ProgressChangeCallback, UIType };
+export { ExploderOptions, GLTFExploder, ProgressChangeCallback };

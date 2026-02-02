@@ -18,7 +18,7 @@
 在工业可视化、机械仿真、产品交互展示等领域，**爆炸图**是展示产品内部结构最直观的方式。本插件旨在解决以下痛点：
 - **算法复杂**：自动计算数千个零件的爆炸路径，无需手动逐个设置。
 - **光照死角**：模型拆解后，内部零件往往因为阴影过黑。内置补光系统可一键照亮细节。
-- **集成成本高**：提供保姆级 API 和可选的交互式 UI（面板/滑块），分钟级完成集成。
+- **集成成本高**：提供保姆级 API 和可选的交互式 UI，分钟级完成集成。
 
 ---
 
@@ -55,8 +55,9 @@ loader.load('model.glb', (gltf) => {
     const model = gltf.scene;
     scene.add(model);
 
+    // 参数顺序：模型, 场景, 相机, 渲染器, 配置项
     const exploder = new GLTFExploder(
-        model, scene, renderer, camera,
+        model, scene, camera, renderer,
         { createUI: true }
     );
 });
@@ -81,38 +82,51 @@ loader.load('model.glb', (gltf) => {
 
 | 参数 | 类型 | 默认值 | 说明 |
 | :--- | :--- | :--- | :--- |
-| `viewport` | `string` | `undefined` | **(UI模式必填)** 3D 容器的 CSS 选择器。 |
-| `model` | `string | THREE.Object3D` | `undefined` | 模型相对路径|
+| `viewport` | `string \| HTMLElement` | `document.body` | **(自动模式必填)** 3D 容器的 CSS 选择器或 DOM 元素。 |
+| `model` | `string \| THREE.Object3D` | `undefined` | 模型路径 (string) 或模型对象 (Object3D)。 |
 | `modelUrl` | `string` | `undefined` | **(可选)** 网络模型 URL。优先级高于 `model`。 |
-| `showUpload` | `boolean` | `false` | **(可选)** 是否在控制面板中显示本地上传按钮。 |
-| `wheelControlExplosion` | `boolean` | `false` | **(可选)** 是否开启鼠标滚轮控制爆炸进度（开启后将禁用鼠标缩放功能）。 |
-| `multiplier` | `number` | `1.0` | **(可选)** 爆炸系数，决定组件分离的距离。 |
+| `models` | `string[] \| ModelOption[]` | `[]` | **(可选)** 供 UI 面板切换的模型资源列表。 |
+| `initialModel` | `string` | `''` | **(可选)** 初始选中的模型路径。 |
 | `createUI` | `boolean` | `true` | 是否自动创建 UI 控件。 |
-| `showPanel` | `boolean` | `true` | **(可选)** 当 `createUI` 为 `true` 时，是否显示控制面板（包含设置、模式切换等）。 |
-| `showProgress` | `boolean` | `true` | **(可选)** 当 `createUI` 为 `true` 时，是否显示底部进度条。 |
-| `uiType` | `string` | `'panel'` | UI 类型：`'panel'` (复合面板) 或 `'slider'` (仅极简进度条)。 |
-| `adaptModel` | `boolean` | `false` | 加载模型后是否自动调整相机位置以完整显示模型。 |
-| `maxDistance` | `number` | `2.0` | 爆炸的最大位移倍率，数值越大拆得越散。 |
-| `mode` | `ExplosionMode` | `RADIAL` | 初始的爆炸算法模式，可选值：<br>`RADIAL` 标准径向<br>`AXIAL` 轴向分层<br>`SIZE_WEIGHTED` 尺寸加权<br>`HIERARCHICAL` 层级树<br>`FORCE_FIELD` 力场模式 |
+| `showPanel` | `boolean` | `true` | **(可选)** 是否显示控制面板（包含设置、模式切换等）。 |
+| `showProgress` | `boolean` | `true` | **(可选)** 是否显示底部进度条。 |
+| `showUpload` | `boolean` | `false` | **(可选)** 是否在控制面板中显示本地上传按钮。 |
+| `wheelControlExplosion` | `boolean` | `false` | **(可选)** 是否开启鼠标滚轮控制爆炸进度（开启后将禁用相机缩放）。 |
+| `adaptModel` | `boolean` | `true` | **(可选)** 自动缩放和居中模型，确保最佳视觉效果。 |
+| `duration` | `number` | `1000` | **(可选)** 爆炸动画持续时间（毫秒）。 |
+| `maxDistance` | `number` | `2.0` | **(可选)** 爆炸最大位移倍率，数值越大拆得越散。 |
+| `mode` | `ExplosionMode` | `RADIAL` | 初始爆炸模式。 |
 | `axialVector` | `THREE.Vector3` | `(0, 1, 0)` | 轴向模式下的位移方向。 |
-| `onModelChange` | `Function` | `undefined` | 当在 UI 中切换模型时的回调函数。 |
+| `uiStyle` | `ExploderUIStyle` | `...` | **(可选)** UI 面板的样式定制（位置、宽高）。 |
+| `directionStrategy` | `Function` | `undefined` | **(高级)** 自定义爆炸方向计算策略。 |
 
 ---
 
 ## 🛰 API 参考
 
 ### `exploder.setProgress(value: number)`
-设置爆炸进度。
-- `value`: `0` (原始位置) 到 `1` (最大爆炸位置)。
+设置爆炸进度 (0-1)。
+
+### `exploder.setMultiplier(value: number)`
+设置爆炸系数 (0.1-5.0)。
+
+### `exploder.setMode(mode: ExplosionMode)`
+动态切换爆炸算法模式。
 
 ### `exploder.setModel(model: THREE.Object3D)`
-动态更换被拆解的模型。插件会自动重新计算新中心点。
+更换当前爆炸的模型对象。
 
 ### `exploder.setInternalLightingVisible(visible: boolean)`
-控制内置补光灯。拆解复杂模型内部时建议开启。
+控制内置补光系统的可见性。
+
+### `exploder.setModelChangeCallback(callback: Function)`
+设置模型切换时的回调（当用户在 UI 面板切换模型时触发）。
+
+### `exploder.setHelperVisibilityChangeCallback(callback: Function)`
+设置辅助显示状态变化时的回调。
 
 ### `exploder.dispose()`
-**非常重要**。在组件卸载或切换页面时调用，会自动清理场景中的灯光、销毁 UI 并释放内存缓存。
+**销毁实例**。自动清理场景灯光、注销事件并移除 UI，防止内存泄漏。
 
 ---
 

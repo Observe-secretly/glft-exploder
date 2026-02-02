@@ -79,11 +79,20 @@ export class GLTFExploder {
     this.camera.position.set(5, 5, 5);
     this.camera.lookAt(0, 0, 0);
 
-    this.renderer = new WebGLRenderer({ antialias: true, alpha: true });
+    this.renderer = new WebGLRenderer({ 
+      antialias: true, 
+      alpha: true,
+      logarithmicDepthBuffer: true // 解决深度冲突（Z-fighting）导致的闪烁问题
+    });
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.toneMapping = ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = EXPLODER_CONSTANTS.EXPOSURE.DEFAULT;
+    
+    // 启用阴影支持并优化阴影质量
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = 2; // THREE.PCFSoftShadowMap
+    
     this.container.appendChild(this.renderer.domElement);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -98,6 +107,14 @@ export class GLTFExploder {
     this.scene.add(new AmbientLight(0xffffff, 0.6));
     const sun = new DirectionalLight(0xffffff, 1);
     sun.position.set(5, 10, 7.5);
+    
+    // 优化阴影配置，防止阴影暗斑（Shadow Acne）和闪烁
+    sun.castShadow = true;
+    sun.shadow.bias = -0.0001; // 微调偏置以消除自阴影伪影
+    sun.shadow.normalBias = 0.02; // 沿法线方向的偏置，对解决曲面阴影暗斑非常有效
+    sun.shadow.mapSize.width = 2048; // 提高阴影分辨率
+    sun.shadow.mapSize.height = 2048;
+    
     this.scene.add(sun);
 
     // 4. 加载模型
@@ -108,10 +125,27 @@ export class GLTFExploder {
       const loader = new GLTFLoader();
       loader.load(finalUrl, (gltf) => {
         const loadedModel = gltf.scene;
+        
+        // 启用模型阴影
+        loadedModel.traverse((node) => {
+          if ((node as any).isMesh) {
+            node.castShadow = true;
+            node.receiveShadow = true;
+          }
+        });
+
         this.scene?.add(loadedModel);
         this.initCore(loadedModel, this.scene!, this.camera!, this.renderer!, this.options);
       });
     } else if (model instanceof Object3D) {
+      // 启用模型阴影
+      model.traverse((node) => {
+        if ((node as any).isMesh) {
+          node.castShadow = true;
+          node.receiveShadow = true;
+        }
+      });
+      
       this.scene.add(model);
       this.initCore(model, this.scene, this.camera, this.renderer, this.options);
     }
@@ -471,4 +505,3 @@ export class GLTFExploder {
 
 // 导出类型和枚举
 export type { ExploderOptions, ProgressChangeCallback } from './core/types';
-export { UIType } from './ui';

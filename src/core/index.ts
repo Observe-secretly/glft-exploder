@@ -71,7 +71,6 @@ export class ExploderCore {
       duration: options.duration ?? EXPLODER_CONSTANTS.DEFAULT_DURATION,
       createUI: options.createUI ?? true,
       viewport: options.viewport ?? document.body,
-      uiType: options.uiType ?? 'slider',
       uiStyle: options.uiStyle ?? {
         width: '200px',
         height: '30px',

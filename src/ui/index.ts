@@ -1,18 +1,9 @@
 import { ExploderUI, ExploderOptions, ProgressChangeCallback, MultiplierChangeCallback, ExposureChangeCallback, ExplosionMode, ModeChangeCallback, AxialChangeCallback, ModelChangeCallback, HelperVisibilityChangeCallback, EXPLODER_CONSTANTS } from '../core/types';
-import { ExploderSlider } from './ExploderSlider';
 import { ExploderPanel } from './ExploderPanel';
 import { ExploderHUD } from './ExploderHUD';
 import { ExploderInfoHUD } from './ExploderInfoHUD';
 import { getContainer } from '../core/utils';
 import { Vector3 } from 'three';
-
-/**
- * UI 类型
- */
-export enum UIType {
-  SLIDER = 'slider',
-  PANEL = 'panel'
-}
 
 /**
  * 复合 UI 类，管理面板和 HUD
@@ -207,50 +198,32 @@ export function createUI(
     }
   }
 
-  // 确定 UI 类型
-  const uiType = options.uiType || UIType.SLIDER;
-  
-  // 创建对应类型的 UI
-  switch (uiType) {
-    case UIType.PANEL:
-      return new CompositeUI(
-        container,
-        onProgressChange,
-        onMultiplierChange,
-        onExposureChange,
-        onModeChange,
-        onAxialChange,
-        onModelChange,
-        onHelperVisibilityChange,
-        onReset,
-        initialProgress,
-        initialMultiplier,
-        initialExposure,
-        initialMode,
-        initialAxial,
-        initialHelperVisible,
-        options.models as any[],
-        options.initialModel || (typeof options.model === 'string' ? options.model : ''),
-        options.uiStyle,
-        options.showUpload,
-        modelName,
-        faceCount,
-        options.showPanel ?? true,
-        options.showProgress ?? true
-      );
-    
-    case UIType.SLIDER:
-      return new ExploderSlider(
-        container,
-        onProgressChange,
-        initialProgress,
-        options.uiStyle
-      );
-    
-    default:
-      return null;
-  }
+  return new CompositeUI(
+    container,
+    onProgressChange,
+    onMultiplierChange,
+    onExposureChange,
+    onModeChange,
+    onAxialChange,
+    onModelChange,
+    onHelperVisibilityChange,
+    onReset,
+    initialProgress,
+    initialMultiplier,
+    initialExposure,
+    initialMode,
+    initialAxial,
+    initialHelperVisible,
+    options.models as any[],
+    options.initialModel || (typeof options.model === 'string' ? options.model : ''),
+    options.uiStyle,
+    options.showUpload,
+    modelName,
+    faceCount,
+    options.showPanel ?? true,
+    options.showProgress ?? true
+  );
 }
 
 // 导出 UI 组件
-export { ExploderSlider, ExploderPanel, ExploderHUD };
+export { ExploderPanel, ExploderHUD };
