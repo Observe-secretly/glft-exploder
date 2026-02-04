@@ -83,6 +83,7 @@ export class ExploderCore {
       model: options.model ?? model,
       modelUrl: options.modelUrl || '',
       showUpload: options.showUpload ?? false,
+      showHelpers: options.showHelpers ?? false,
       showPanel: options.showPanel ?? true,
       showProgress: options.showProgress ?? true,
       wheelControlExplosion: options.wheelControlExplosion ?? false,

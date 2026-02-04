@@ -1,6 +1,7 @@
 import { ExploderUI, MultiplierChangeCallback, ExposureChangeCallback, ExplosionMode, ModeChangeCallback, AxialChangeCallback, ModelChangeCallback, HelperVisibilityChangeCallback, ModelOption, ExploderUIStyle, EXPLODER_CONSTANTS } from '../core/types';
 import { createStyles } from './styles';
 import { Vector3 } from 'three';
+import { LiquidGlass } from './LiquidGlass';
 
 /**
  * 爆炸视图面板控件
@@ -8,13 +9,14 @@ import { Vector3 } from 'three';
  */
 export class ExploderPanel implements ExploderUI {
   public element: HTMLElement;
+  private liquidGlass?: LiquidGlass;
   
   private multiplierSlider: HTMLInputElement;
   private exposureSlider: HTMLInputElement;
   private modeButtons: Map<ExplosionMode, HTMLElement> = new Map();
   private modelSelect?: HTMLSelectElement;
   private axialSelect: HTMLSelectElement;
-  private helperToggle: HTMLInputElement;
+  private helperToggle?: HTMLInputElement;
   private axialContainer: HTMLElement;
   private multiplierDisplay: HTMLSpanElement;
   private exposureDisplay: HTMLSpanElement;
@@ -42,11 +44,12 @@ export class ExploderPanel implements ExploderUI {
     initialExposure = EXPLODER_CONSTANTS.EXPOSURE.DEFAULT,
     initialMode = ExplosionMode.RADIAL,
     initialAxial = new Vector3(0, 1, 0),
-    initialHelperVisible = true,
+    initialHelperVisible = false,
     models: string[] | ModelOption[] = [],
     initialModel?: string,
     style: Partial<ExploderUIStyle> = {},
-    showUpload = false
+    showUpload = false,
+    showHelpers = false
   ) {
     this.onMultiplierChange = onMultiplierChange;
     this.onExposureChange = onExposureChange;
@@ -75,7 +78,7 @@ export class ExploderPanel implements ExploderUI {
     this.element.appendChild(header);
 
     const contentWrapper = document.createElement('div');
-    this.applyStyle(contentWrapper, 'display: flex; flex-direction: column; gap: 32px; flex: 1;');
+    this.applyStyle(contentWrapper, 'display: flex; flex-direction: column; gap: 20px; flex: 1;');
     this.element.appendChild(contentWrapper);
 
     // 3. 模型资源
@@ -106,8 +109,8 @@ export class ExploderPanel implements ExploderUI {
       if (showUpload) {
         const uploadBtn = document.createElement('div');
         this.applyStyle(uploadBtn, `
-          margin-top: ${hasModels ? '12px' : '0'};
-          padding: 10px;
+          margin-top: ${hasModels ? '8px' : '0'};
+          padding: 8px;
           background: var(--exploder-bg-sub);
           border: 1px dashed var(--exploder-border);
           border-radius: 12px;
@@ -210,7 +213,7 @@ export class ExploderPanel implements ExploderUI {
 
     // 轴向选择 (仅轴向模式可见)
     this.axialContainer = document.createElement('div');
-    this.applyStyle(this.axialContainer, `margin-top: 12px; display: ${initialMode === ExplosionMode.AXIAL ? 'block' : 'none'}`);
+    this.applyStyle(this.axialContainer, `margin-top: 8px; display: ${initialMode === ExplosionMode.AXIAL ? 'block' : 'none'}`);
     this.axialSelect = document.createElement('select');
     this.applyStyle(this.axialSelect, this.styles.select);
     [
@@ -228,26 +231,28 @@ export class ExploderPanel implements ExploderUI {
     contentWrapper.appendChild(modeSection);
 
     // 8. 辅助选项
-    const helperSection = this.createSection('辅助视图', '控制场景辅助元素的显示');
-    const helperRow = document.createElement('label');
-    this.applyStyle(helperRow, 'display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;');
-    this.helperToggle = document.createElement('input');
-    this.helperToggle.type = 'checkbox';
-    this.helperToggle.checked = initialHelperVisible;
-    this.helperToggle.style.width = '16px';
-    this.helperToggle.style.height = '16px';
-    this.helperToggle.style.accentColor = 'var(--exploder-accent)';
-    helperRow.appendChild(this.helperToggle);
-    const helperText = document.createElement('span');
-    helperText.textContent = '显示网格与坐标轴标签';
-    this.applyStyle(helperText, 'font-size: 12px; font-weight: 500; color: var(--exploder-text-sub);');
-    helperRow.appendChild(helperText);
-    helperSection.appendChild(helperRow);
-    contentWrapper.appendChild(helperSection);
+    if (showHelpers) {
+      const helperSection = this.createSection('辅助视图', '控制场景辅助元素的显示');
+      const helperRow = document.createElement('label');
+      this.applyStyle(helperRow, 'display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;');
+      this.helperToggle = document.createElement('input');
+      this.helperToggle.type = 'checkbox';
+      this.helperToggle.checked = initialHelperVisible;
+      this.helperToggle.style.width = '16px';
+      this.helperToggle.style.height = '16px';
+      this.helperToggle.style.accentColor = 'var(--exploder-accent)';
+      helperRow.appendChild(this.helperToggle);
+      const helperText = document.createElement('span');
+      helperText.textContent = '显示网格与坐标轴标签';
+      this.applyStyle(helperText, 'font-size: 12px; font-weight: 500; color: var(--exploder-text-sub);');
+      helperRow.appendChild(helperText);
+      helperSection.appendChild(helperRow);
+      contentWrapper.appendChild(helperSection);
+    }
 
     // 9. 重置按钮
     const footer = document.createElement('div');
-    this.applyStyle(footer, 'padding-top: 12px; margin-top: auto;');
+    this.applyStyle(footer, 'padding-top: 8px; margin-top: auto;');
     this.resetButton = document.createElement('button');
     this.resetButton.className = 'exploder-button-reset';
     this.applyStyle(this.resetButton, this.styles.buttonReset);
@@ -281,7 +286,9 @@ export class ExploderPanel implements ExploderUI {
       const [x, y, z] = (e.target as HTMLSelectElement).value.split(',').map(Number);
       this.onAxialChange?.(new Vector3(x, y, z));
     };
-    this.helperToggle.onchange = (e) => this.onHelperVisibilityChange?.((e.target as HTMLInputElement).checked);
+    if (this.helperToggle) {
+      this.helperToggle.onchange = (e) => this.onHelperVisibilityChange?.((e.target as HTMLInputElement).checked);
+    }
     this.resetButton.onclick = () => {
       this.onReset?.();
     };
@@ -289,6 +296,22 @@ export class ExploderPanel implements ExploderUI {
     // 挂载
     const target = typeof container === 'string' ? document.querySelector(container) : container;
     (target || document.body).appendChild(this.element);
+
+    // 应用液态玻璃效果
+    this.liquidGlass = new LiquidGlass(this.element, {
+      width: 260,
+      height: this.element.offsetHeight || 600
+    });
+
+    // 监听高度变化
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(() => {
+        if (this.liquidGlass) {
+          this.liquidGlass.updateSize(260, this.element.offsetHeight);
+        }
+      });
+      ro.observe(this.element);
+    }
   }
 
   private createSection(title?: string, hint?: string): HTMLElement {
@@ -368,6 +391,7 @@ export class ExploderPanel implements ExploderUI {
   }
 
   public dispose(): void {
+    this.liquidGlass?.dispose();
     if (this.element.parentNode) this.element.parentNode.removeChild(this.element);
   }
 }

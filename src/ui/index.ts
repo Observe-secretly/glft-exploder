@@ -2,7 +2,7 @@ import { ExploderUI, ExploderOptions, ProgressChangeCallback, MultiplierChangeCa
 import { ExploderPanel } from './ExploderPanel';
 import { ExploderHUD } from './ExploderHUD';
 import { ExploderInfoHUD } from './ExploderInfoHUD';
-import { getContainer } from '../core/utils';
+import { getContainer, isMobile } from '../core/utils';
 import { Vector3 } from 'three';
 
 /**
@@ -13,6 +13,7 @@ class CompositeUI implements ExploderUI {
   private panel?: ExploderPanel;
   private hud?: ExploderHUD;
   private infoHUD?: ExploderInfoHUD;
+  private resizeHandler: () => void;
 
   constructor(
     container: HTMLElement,
@@ -29,11 +30,12 @@ class CompositeUI implements ExploderUI {
     initialExposure = EXPLODER_CONSTANTS.EXPOSURE.DEFAULT,
     initialMode = ExplosionMode.RADIAL,
     initialAxial = new Vector3(0, 1, 0),
-    initialHelperVisible = true,
+    initialHelperVisible = false,
     models?: any[],
     initialModel?: string,
     style?: any,
     showUpload = false,
+    showHelpers = false,
     modelName: string = '示例模型',
     faceCount: number = 0,
     showPanel = true,
@@ -42,7 +44,7 @@ class CompositeUI implements ExploderUI {
     // 根元素使用容器
     this.element = container;
 
-    // 创建面板
+    // 创建面板 (即使是移动端也先创建，后续动态控制可见性)
     if (showPanel) {
       this.panel = new ExploderPanel(
         container,
@@ -61,7 +63,8 @@ class CompositeUI implements ExploderUI {
         models,
         initialModel,
         style,
-        showUpload
+        showUpload,
+        showHelpers
       );
     }
 
@@ -78,18 +81,42 @@ class CompositeUI implements ExploderUI {
     if (showPanel) {
       this.infoHUD = new ExploderInfoHUD(container, modelName, faceCount);
     }
+
+    // 初始更新响应式状态
+    this.updateResponsiveState();
+
+    // 监听窗口大小变化
+    this.resizeHandler = this.updateResponsiveState.bind(this);
+    window.addEventListener('resize', this.resizeHandler);
+  }
+
+  /**
+   * 更新响应式状态，根据屏幕尺寸显示/隐藏组件
+   */
+  private updateResponsiveState() {
+    const mobile = isMobile();
+    
+    if (mobile) {
+      this.panel?.hide();
+      this.infoHUD?.hide();
+    } else {
+      this.panel?.show();
+      this.infoHUD?.show();
+    }
   }
 
   show() {
-    this.panel?.show();
+    if (!isMobile()) {
+      this.panel?.show();
+      this.infoHUD?.show();
+    }
     this.hud?.show();
-    this.infoHUD?.element && (this.infoHUD.element.style.display = 'flex');
   }
 
   hide() {
     this.panel?.hide();
     this.hud?.hide();
-    this.infoHUD?.element && (this.infoHUD.element.style.display = 'none');
+    this.infoHUD?.hide();
   }
 
   update(progress: number) {
@@ -138,6 +165,7 @@ class CompositeUI implements ExploderUI {
   }
 
   dispose() {
+    window.removeEventListener('resize', this.resizeHandler);
     this.panel?.dispose();
     this.hud?.dispose();
     this.infoHUD?.dispose();
@@ -177,7 +205,7 @@ export function createUI(
   initialExposure = EXPLODER_CONSTANTS.EXPOSURE.DEFAULT,
   initialMode = ExplosionMode.RADIAL,
   initialAxial = new Vector3(0, 1, 0),
-  initialHelperVisible = true,
+  initialHelperVisible = false,
   modelName: string = '示例模型',
   faceCount: number = 0
 ): ExploderUI | null {
@@ -218,6 +246,7 @@ export function createUI(
     options.initialModel || (typeof options.model === 'string' ? options.model : ''),
     options.uiStyle,
     options.showUpload,
+    options.showHelpers,
     modelName,
     faceCount,
     options.showPanel ?? true,

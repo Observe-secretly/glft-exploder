@@ -1,5 +1,43 @@
-import { Object3D, Vector3 } from 'three';
+import { Object3D, Vector3, Sprite, SpriteMaterial, CanvasTexture } from 'three';
 import { EXPLODER_CONSTANTS } from './types';
+
+/**
+ * 创建一个精致的文本精灵标签
+ * @param text 标签文字
+ * @param color 背景颜色
+ * @returns Sprite 对象
+ */
+export function createTextSprite(text: string, color: string = '#2563EB'): Sprite {
+  const canvas = document.createElement('canvas');
+  const size = 128; // 高分辨率
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  if (ctx) {
+    // 绘制圆角背景或圆形背景
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2.2, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    // 绘制文字
+    ctx.font = 'bold 72px Inter, system-ui, -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(text, size / 2, size / 2);
+  }
+
+  const texture = new CanvasTexture(canvas);
+  const material = new SpriteMaterial({ map: texture, transparent: true });
+  const sprite = new Sprite(material);
+  
+  // 缩放到合适大小 (0.4个单位)
+  sprite.scale.set(0.4, 0.4, 1);
+  
+  return sprite;
+}
 
 /**
  * 计算从中心点到对象的方向向量
@@ -115,4 +153,14 @@ export function getFileName(path: string): string {
   const parts = path.split('/');
   const lastPart = parts[parts.length - 1];
   return lastPart.split('?')[0]; // 移除查询参数
+}
+
+/**
+ * 检测当前环境是否为移动端
+ * @returns 是否为移动端
+ */
+export function isMobile(): boolean {
+  if (typeof window === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+         (window.innerWidth <= 768);
 }

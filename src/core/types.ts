@@ -170,6 +170,8 @@ export interface ExploderOptions {
   viewport?: HTMLElement | string;
   /** 是否在控制面板中显示本地上传按钮 (默认为 false) */
   showUpload?: boolean;
+  /** 是否在控制面板中显示辅助视图选项 (默认为 false) */
+  showHelpers?: boolean;
   /** 是否开启鼠标滚轮控制爆炸进度 (默认为 false，开启后将禁用相机缩放) */
   wheelControlExplosion?: boolean;
   /** UI 样式配置 */

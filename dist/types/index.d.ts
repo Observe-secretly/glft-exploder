@@ -68,6 +68,8 @@ interface ExploderOptions {
     viewport?: HTMLElement | string;
     /** 是否在控制面板中显示本地上传按钮 (默认为 false) */
     showUpload?: boolean;
+    /** 是否在控制面板中显示辅助视图选项 (默认为 false) */
+    showHelpers?: boolean;
     /** 是否开启鼠标滚轮控制爆炸进度 (默认为 false，开启后将禁用相机缩放) */
     wheelControlExplosion?: boolean;
     /** UI 样式配置 */
@@ -96,6 +98,10 @@ declare class GLTFExploder {
     private camera;
     private controls;
     private container;
+    private gridHelper;
+    private axesHelper;
+    private axisLabels;
+    private zoomControls;
     private onModelChangeCallback?;
     private onHelperVisibilityChangeCallback?;
     private options;
@@ -149,6 +155,11 @@ declare class GLTFExploder {
      * @param model 新的模型对象
      */
     setModel(model: Object3D): void;
+    /**
+     * 设置辅助器可见性 (网格、坐标轴等)
+     * @param visible 是否可见
+     */
+    setHelperVisibility(visible: boolean): void;
     /**
      * 设置内部灯光可见性
      * @param visible 是否可见

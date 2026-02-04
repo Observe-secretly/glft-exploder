@@ -127,8 +127,12 @@
         <!-- 开关控制 -->
         <div class="control-group">
             <div class="control-row">
-                <label class="label" for="light-toggle">内部补光系统</label>
-                <input type="checkbox" id="light-toggle" checked title="setInternalLightingVisible(bool)">
+                <label class="label" for="light-toggle">内部灯光 (Internal Lights)</label>
+                <input type="checkbox" id="light-toggle" checked title="setInternalLightingVisible(val)">
+            </div>
+            <div class="control-row">
+                <label class="label">辅助视图 (Helpers)</label>
+                <input type="checkbox" id="helper-toggle" title="handleHelperVisibilityChange(val)">
             </div>
         </div>
 

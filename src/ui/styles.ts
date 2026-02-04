@@ -11,25 +11,29 @@ export function createStyles(_style: Partial<ExploderUIStyle> = {}): Record<stri
       position: absolute;
       top: 24px;
       right: 24px;
-      width: 320px;
+      width: 260px;
       max-height: calc(100vh - 48px);
       overflow-y: auto;
       z-index: 1000;
       display: flex;
       flex-direction: column;
-      gap: 32px;
-      padding: 24px;
+      gap: 20px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
     `,
     section: `
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 8px;
     `,
     sectionHeader: `
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-bottom: 20px;
+      margin-bottom: 12px;
     `,
     title: `
       font-family: 'General Sans', sans-serif;
@@ -88,7 +92,7 @@ export function createStyles(_style: Partial<ExploderUIStyle> = {}): Record<stri
     `,
     buttonReset: `
       width: 100%;
-      padding: 16px;
+      padding: 12px;
       background: #111827;
       color: white;
       border: none;
@@ -109,6 +113,43 @@ export function createStyles(_style: Partial<ExploderUIStyle> = {}): Record<stri
     `,
     buttonResetActive: `
       transform: scale(0.98);
+    `,
+    zoomContainer: `
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      background: rgba(255, 255, 255, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+      z-index: 1000;
+    `,
+    zoomButton: `
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      color: var(--exploder-text-main);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      padding: 0;
+      outline: none;
+    `,
+    zoomButtonHover: `
+      background: rgba(255, 255, 255, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      color: var(--exploder-accent);
+    `,
+    zoomButtonActive: `
+      transform: translateY(0) scale(0.95);
+      background: rgba(255, 255, 255, 0.2);
     `
   };
 }

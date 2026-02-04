@@ -1,11 +1,13 @@
-import { Object3D, Scene, Camera, WebGLRenderer, Vector3, PerspectiveCamera, AmbientLight, DirectionalLight, Color, ACESFilmicToneMapping } from 'three';
+import { Object3D, Scene, Camera, WebGLRenderer, Vector3, PerspectiveCamera, AmbientLight, DirectionalLight, Color, ACESFilmicToneMapping, GridHelper, AxesHelper } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import './ui/base.css';
 import { ExploderCore } from './core';
 import { ExploderUI, ExploderOptions, ExplosionMode, ModelChangeCallback, HelperVisibilityChangeCallback, EXPLODER_CONSTANTS, ProgressChangeCallback } from './core/types';
 import { createUI } from './ui';
-import { calculateFaceCount, getFileName } from './core/utils';
+import { createStyles } from './ui/styles';
+import { ExploderZoomControls } from './ui/ExploderZoomControls';
+import { calculateFaceCount, getFileName, createTextSprite } from './core/utils';
 
 /**
  * GLTFExploder 类
@@ -19,6 +21,10 @@ export class GLTFExploder {
   private camera: Camera | null = null;
   private controls: OrbitControls | null = null;
   private container: HTMLElement | null = null;
+  private gridHelper: GridHelper | null = null;
+  private axesHelper: AxesHelper | null = null;
+  private axisLabels: { x: any, y: any, z: any } | null = null;
+  private zoomControls: ExploderZoomControls | null = null;
   
   private onModelChangeCallback?: ModelChangeCallback;
   private onHelperVisibilityChangeCallback?: HelperVisibilityChangeCallback;
@@ -117,7 +123,32 @@ export class GLTFExploder {
     
     this.scene.add(sun);
 
-    // 4. 加载模型
+    // 4. 添加辅助器 (网格和坐标轴)
+    this.gridHelper = new GridHelper(10, 10, 0xcccccc, 0x888888);
+    this.axesHelper = new AxesHelper(5);
+    // 默认关闭，由用户通过面板或 API 开启
+    this.gridHelper.visible = false;
+    this.axesHelper.visible = false;
+    this.scene.add(this.gridHelper);
+    this.scene.add(this.axesHelper);
+
+    // 4.1 添加坐标轴标签
+    const labelX = createTextSprite('X', '#FF4444');
+    const labelY = createTextSprite('Y', '#44FF44');
+    const labelZ = createTextSprite('Z', '#4444FF');
+    
+    // 默认关闭
+    labelX.visible = false;
+    labelY.visible = false;
+    labelZ.visible = false;
+    labelX.position.set(5.5, 0, 0);
+    labelY.position.set(0, 5.5, 0);
+    labelZ.position.set(0, 0, 5.5);
+    
+    this.axisLabels = { x: labelX, y: labelY, z: labelZ };
+    this.scene.add(labelX, labelY, labelZ);
+
+    // 5. 加载模型
     // 优先级: modelUrl > model(string) > model(Object3D)
     const finalUrl = modelUrl || (typeof model === 'string' ? model : null);
     
@@ -150,10 +181,10 @@ export class GLTFExploder {
       this.initCore(model, this.scene, this.camera, this.renderer, this.options);
     }
 
-    // 5. 启动渲染循环
+    // 6. 启动渲染循环
     this.animate();
 
-    // 6. 监听窗口变化
+    // 7. 监听窗口变化
     window.addEventListener('resize', this.onResize.bind(this));
   }
 
@@ -210,10 +241,16 @@ export class GLTFExploder {
         renderer.toneMappingExposure,
         this.core.getMode(),
         this.core.getAxialVector(),
-        true,
+        false,
         modelName,
         faceCount
       );
+    }
+
+    // 初始化缩放控件 (始终展示，独立于控制面板)
+    if (this.container && this.controls) {
+      const styles = createStyles(options.uiStyle);
+      this.zoomControls = new ExploderZoomControls(this.container, this.controls, styles);
     }
 
     // 监听滚轮事件（如果开启了滚轮控制爆炸）
@@ -307,6 +344,15 @@ export class GLTFExploder {
     if (this.onHelperVisibilityChangeCallback) {
       this.onHelperVisibilityChangeCallback(visible);
     }
+    
+    // 更新辅助器可见性
+    if (this.gridHelper) this.gridHelper.visible = visible;
+    if (this.axesHelper) this.axesHelper.visible = visible;
+    if (this.axisLabels) {
+      this.axisLabels.x.visible = visible;
+      this.axisLabels.y.visible = visible;
+      this.axisLabels.z.visible = visible;
+    }
   }
 
   /**
@@ -331,6 +377,18 @@ export class GLTFExploder {
    */
   public setModel(model: Object3D): void {
     this.core?.setModel(model);
+  }
+
+  /**
+   * 设置辅助器可见性 (网格、坐标轴等)
+   * @param visible 是否可见
+   */
+  public setHelperVisibility(visible: boolean): void {
+    this.handleHelperVisibilityChange(visible);
+    // 同步更新 UI 状态
+    if (this.ui && this.ui.updateHelperVisibility) {
+      this.ui.updateHelperVisibility(visible);
+    }
   }
 
   /**
@@ -454,6 +512,8 @@ export class GLTFExploder {
       this.ui.updateMode?.(ExplosionMode.RADIAL);
       this.ui.updateAxialVector?.(new Vector3(0, 1, 0));
       this.ui.updateHelperVisibility?.(true);
+      // 同时重置内部辅助器状态
+      this.handleHelperVisibilityChange(true);
     }
   }
   
@@ -499,6 +559,50 @@ export class GLTFExploder {
       this.ui.dispose();
       this.ui = null;
     }
+
+    if (this.zoomControls) {
+      this.zoomControls.dispose();
+      this.zoomControls = null;
+    }
+    
+    // 释放辅助器
+    if (this.gridHelper) {
+      this.scene?.remove(this.gridHelper);
+      this.gridHelper.geometry.dispose();
+      if (Array.isArray(this.gridHelper.material)) {
+        this.gridHelper.material.forEach(m => m.dispose());
+      } else {
+        this.gridHelper.material.dispose();
+      }
+      this.gridHelper = null;
+    }
+    if (this.axesHelper) {
+      this.scene?.remove(this.axesHelper);
+      this.axesHelper.geometry.dispose();
+      if (Array.isArray(this.axesHelper.material)) {
+        this.axesHelper.material.forEach(m => m.dispose());
+      } else {
+        this.axesHelper.material.dispose();
+      }
+      this.axesHelper = null;
+    }
+
+    // 释放标签
+    if (this.axisLabels) {
+      const { x, y, z } = this.axisLabels;
+      [x, y, z].forEach(label => {
+        this.scene?.remove(label);
+        label.geometry.dispose();
+        if (Array.isArray(label.material)) {
+          label.material.forEach((m: any) => m.dispose());
+        } else {
+          label.material.dispose();
+        }
+        if (label.material.map) label.material.map.dispose();
+      });
+      this.axisLabels = null;
+    }
+
     this.core?.dispose();
   }
 }

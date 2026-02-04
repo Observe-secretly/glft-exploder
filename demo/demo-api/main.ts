@@ -27,6 +27,7 @@ const multiplierVal = document.getElementById('multiplier-val') as HTMLElement; 
 const exposureRange = document.getElementById('exposure-range') as HTMLInputElement;     // 补光曝光度滑动条
 const exposureVal = document.getElementById('exposure-val') as HTMLElement;              // 曝光度数值显示
 const lightToggle = document.getElementById('light-toggle') as HTMLInputElement;         // 内部灯光开关
+const helperToggle = document.getElementById('helper-toggle') as HTMLInputElement;       // 辅助视图开关
 const resetBtn = document.getElementById('reset-btn') as HTMLButtonElement;               // 重置按钮
 const disposeBtn = document.getElementById('dispose-btn') as HTMLButtonElement;           // 销毁按钮
 
@@ -71,6 +72,12 @@ exposureRange.addEventListener('input', (e) => {
 lightToggle.addEventListener('change', (e) => {
     const checked = (e.target as HTMLInputElement).checked;
     exploder?.setInternalLightingVisible(checked);
+});
+
+// 6.1 辅助视图显隐 API: exploder.setHelperVisibility(boolean)
+helperToggle.addEventListener('change', (e) => {
+    const checked = (e.target as HTMLInputElement).checked;
+    exploder?.setHelperVisibility(checked);
 });
 
 // 7. 重置 API: exploder.reset()

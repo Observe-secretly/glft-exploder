@@ -1,9 +1,13 @@
+import { LiquidGlass } from './LiquidGlass';
+
 /**
  * 爆炸视图左上角信息 HUD
  * 显示模型名称和系统状态
  */
 export class ExploderInfoHUD {
   public element: HTMLElement;
+  private liquidGlass1?: LiquidGlass;
+  private liquidGlass2?: LiquidGlass;
   private modelNameDisplay: HTMLSpanElement;
   private faceCountDisplay: HTMLSpanElement;
 
@@ -31,6 +35,10 @@ export class ExploderInfoHUD {
       align-items: center;
       gap: 16px;
       pointer-events: auto;
+      background: rgba(255, 255, 255, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     `);
     
     // 图标
@@ -89,9 +97,8 @@ export class ExploderInfoHUD {
     const statusLabel = document.createElement('div');
     this.applyStyle(statusLabel, `
       padding: 8px 16px;
-      background: rgba(255, 255, 255, 0.8);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(229, 231, 235, 0.5);
+      background: rgba(255, 255, 255, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 12px;
       display: inline-flex;
       align-items: center;
@@ -121,6 +128,10 @@ export class ExploderInfoHUD {
     // 挂载
     const target = typeof container === 'string' ? document.querySelector(container) : container;
     (target || document.body).appendChild(this.element);
+
+    // 应用液态玻璃效果
+    this.liquidGlass1 = new LiquidGlass(nameCard, { width: 300, height: 80 });
+    this.liquidGlass2 = new LiquidGlass(statusLabel, { width: 300, height: 40 });
   }
 
   public update(name: string, faceCount: number): void {
@@ -136,7 +147,17 @@ export class ExploderInfoHUD {
     this.faceCountDisplay.textContent = `面数: ${count.toLocaleString()}`;
   }
 
+  public show(): void {
+    this.element.style.display = 'flex';
+  }
+
+  public hide(): void {
+    this.element.style.display = 'none';
+  }
+
   public dispose(): void {
+    this.liquidGlass1?.dispose();
+    this.liquidGlass2?.dispose();
     if (this.element.parentNode) {
       this.element.parentNode.removeChild(this.element);
     }

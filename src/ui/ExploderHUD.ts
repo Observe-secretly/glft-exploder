@@ -1,4 +1,5 @@
 import { ProgressChangeCallback, EXPLODER_CONSTANTS } from '../core/types';
+import { LiquidGlass } from './LiquidGlass';
 
 /**
  * 爆炸视图底部 HUD (播放进度条)
@@ -6,6 +7,7 @@ import { ProgressChangeCallback, EXPLODER_CONSTANTS } from '../core/types';
  */
 export class ExploderHUD {
   public element: HTMLElement;
+  private liquidGlass?: LiquidGlass;
   private slider: HTMLInputElement;
   private valueDisplay: HTMLSpanElement;
   private onProgressChange: ProgressChangeCallback;
@@ -40,10 +42,9 @@ export class ExploderHUD {
       gap: 20px;
       padding: 12px 24px;
       border-radius: 16px;
-      background: rgba(255, 255, 255, 0.9);
-      backdrop-filter: blur(12px);
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-      border: 1px solid rgba(229, 231, 235, 0.5);
+      background: rgba(255, 255, 255, 0.4);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
     `);
     this.element.appendChild(card);
 
@@ -112,6 +113,12 @@ export class ExploderHUD {
     // 挂载
     const target = typeof container === 'string' ? document.querySelector(container) : container;
     (target || document.body).appendChild(this.element);
+
+    // 应用液态玻璃效果
+    this.liquidGlass = new LiquidGlass(card, {
+      width: 600,
+      height: 80
+    });
   }
 
   public update(progress: number): void {
@@ -128,6 +135,7 @@ export class ExploderHUD {
   }
 
   public dispose(): void {
+    this.liquidGlass?.dispose();
     if (this.element.parentNode) {
       this.element.parentNode.removeChild(this.element);
     }
