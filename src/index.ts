@@ -25,6 +25,7 @@ export class GLTFExploder {
   private axesHelper: AxesHelper | null = null;
   private axisLabels: { x: any, y: any, z: any } | null = null;
   private zoomControls: ExploderZoomControls | null = null;
+  private boundOnWheel: ((event: WheelEvent) => void) | null = null;
   
   private onModelChangeCallback?: ModelChangeCallback;
   private onHelperVisibilityChangeCallback?: HelperVisibilityChangeCallback;
@@ -239,6 +240,11 @@ export class GLTFExploder {
    * 初始化核心引擎和 UI
    */
   private initCore(model: Object3D, scene: Scene, camera: Camera, renderer: WebGLRenderer, options: ExploderOptions): void {
+    // 销毁旧核心（如果存在），但保留 UI
+    if (this.core) {
+      this.core.dispose();
+    }
+    
     this.core = new ExploderCore(model, scene, camera, renderer, options);
     
     // 计算面数和获取名称
@@ -252,7 +258,8 @@ export class GLTFExploder {
       modelName = model.name;
     }
 
-    if (options.createUI !== false) {
+    // 只有在 UI 不存在时才创建
+    if (options.createUI !== false && !this.ui) {
       this.ui = createUI(
         options,
         this.setProgress.bind(this),
@@ -272,17 +279,28 @@ export class GLTFExploder {
         modelName,
         faceCount
       );
+    } else if (this.ui) {
+      // 如果 UI 已存在，仅更新其显示信息
+      this.ui.update(EXPLODER_CONSTANTS.PROGRESS.DEFAULT);
+      if (this.ui.updateInfo) {
+        this.ui.updateInfo(modelName, faceCount);
+      }
     }
 
-    // 初始化缩放控件 (始终展示，独立于控制面板)
-    if (this.container && this.controls) {
+    // 只有在缩放控件不存在时才创建
+    if (this.container && this.controls && !this.zoomControls) {
       const styles = createStyles(options.uiStyle);
       this.zoomControls = new ExploderZoomControls(this.container, this.controls, styles);
     }
 
-    // 监听滚轮事件（如果开启了滚轮控制爆炸）
+    // 监听滚轮事件（如果开启了滚轮控制爆炸且尚未监听）
     if (this.options.wheelControlExplosion && this.renderer) {
-      this.renderer.domElement.addEventListener('wheel', this.onWheel.bind(this), { passive: false });
+      if (!this.boundOnWheel) {
+        this.boundOnWheel = this.onWheel.bind(this);
+      }
+      // 先尝试移除，防止重复监听
+      this.renderer.domElement.removeEventListener('wheel', this.boundOnWheel);
+      this.renderer.domElement.addEventListener('wheel', this.boundOnWheel, { passive: false });
     }
   }
 
@@ -334,25 +352,12 @@ export class GLTFExploder {
       const newModel = gltf.scene;
       this.scene?.add(newModel);
 
-      // 3. 重新初始化核心
+      // 3. 重新初始化核心（内部会处理 UI 更新或创建）
       this.initCore(newModel, this.scene!, this.camera!, this.renderer!, this.options);
 
-      // 4. 更新 UI 状态
-      if (this.ui) {
-        this.ui.update(EXPLODER_CONSTANTS.PROGRESS.DEFAULT);
-        if (this.ui.updateModel) {
-          this.ui.updateModel(modelPath);
-        }
-        // 更新模型名称和面数
-        if (this.ui.updateInfo) {
-          const faceCount = calculateFaceCount(newModel);
-          // 如果是 Blob URL (本地上传)，我们尝试获取文件名，或者显示 "Local File"
-          let name = 'Local File';
-          if (!modelPath.startsWith('blob:')) {
-            name = getFileName(modelPath);
-          }
-          this.ui.updateInfo(name, faceCount);
-        }
+      // 4. 更新 UI 特定状态（如模型路径）
+      if (this.ui && this.ui.updateModel) {
+        this.ui.updateModel(modelPath);
       }
 
       // 5. 如果是 Blob URL，释放它以防内存泄漏
