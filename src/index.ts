@@ -1,6 +1,6 @@
-import { Object3D, Scene, Camera, WebGLRenderer, Vector3, PerspectiveCamera, AmbientLight, DirectionalLight, Color, ACESFilmicToneMapping, GridHelper, AxesHelper, TOUCH } from 'three';
+import { Object3D, Scene, Camera, WebGLRenderer, Vector3, PerspectiveCamera, AmbientLight, DirectionalLight, Color, ACESFilmicToneMapping, GridHelper, AxesHelper } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { ArcballControls } from 'three/examples/jsm/controls/ArcballControls.js';
 import './ui/base.css';
 import { ExploderCore } from './core';
 import { ExploderUI, ExploderOptions, ExplosionMode, ModelChangeCallback, HelperVisibilityChangeCallback, EXPLODER_CONSTANTS, ProgressChangeCallback } from './core/types';
@@ -19,7 +19,7 @@ export class GLTFExploder {
   private renderer: WebGLRenderer | null = null;
   private scene: Scene | null = null;
   private camera: Camera | null = null;
-  private controls: OrbitControls | null = null;
+  private controls: ArcballControls | null = null;
   private container: HTMLElement | null = null;
   private gridHelper: GridHelper | null = null;
   private axesHelper: AxesHelper | null = null;
@@ -96,23 +96,19 @@ export class GLTFExploder {
     this.renderer.toneMapping = ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = EXPLODER_CONSTANTS.EXPOSURE.DEFAULT;
     
-    // 启用阴影支持并优化阴影质量
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = 2; // THREE.PCFSoftShadowMap
+    // 禁用阴影支持以提升性能
+    this.renderer.shadowMap.enabled = false;
     
     this.container.appendChild(this.renderer.domElement);
 
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
+    this.controls = new ArcballControls(this.camera, this.renderer.domElement, this.scene);
     
-    // 针对移动端优化
-    this.controls.enableZoom = true;
+    // 针对移动端和自由旋转优化
     this.controls.enableRotate = true;
+    this.controls.enableZoom = true;
     this.controls.enablePan = true;
-    this.controls.touches = {
-      ONE: TOUCH.ROTATE, // 单指旋转
-      TWO: TOUCH.DOLLY_PAN // 双指缩放和平移
-    };
+    this.controls.setGizmosVisible(false); // 隐藏调试圆环
+    this.controls.cursorZoom = true; // 允许跟随鼠标缩放
 
     // 禁用缩放（如果开启了滚轮控制爆炸）
     if (this.options.wheelControlExplosion) {
@@ -131,11 +127,7 @@ export class GLTFExploder {
     // 核心主灯（稍微偏移相机中心）
     const mainSun = new DirectionalLight(0xffffff, 0.8);
     mainSun.position.set(2, 5, 5); // 相机本地坐标
-    mainSun.castShadow = true;
-    mainSun.shadow.bias = -0.0001;
-    mainSun.shadow.normalBias = 0.02;
-    mainSun.shadow.mapSize.width = 2048;
-    mainSun.shadow.mapSize.height = 2048;
+    mainSun.castShadow = false; // 禁用阴影渲染以提升性能
     
     // 目标点位于相机前方
     const mainTarget = new Object3D();

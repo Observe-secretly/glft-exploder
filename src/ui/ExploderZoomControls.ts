@@ -1,4 +1,3 @@
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { LiquidGlass } from './LiquidGlass';
 
 /**
@@ -7,11 +6,11 @@ import { LiquidGlass } from './LiquidGlass';
  */
 export class ExploderZoomControls {
   private container: HTMLElement;
-  private controls: OrbitControls;
+  private controls: any; // 兼容 OrbitControls, ArcballControls 等
   private liquidGlass: LiquidGlass | null = null;
   private zoomStep: number = 0.9; // 缩放系数
 
-  constructor(parent: HTMLElement, controls: OrbitControls, styles: Record<string, string>) {
+  constructor(parent: HTMLElement, controls: any, styles: Record<string, string>) {
     this.controls = controls;
     
     // 创建容器
