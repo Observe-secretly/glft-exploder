@@ -102,6 +102,7 @@ declare class GLTFExploder {
     private axesHelper;
     private axisLabels;
     private zoomControls;
+    private boundOnWheel;
     private onModelChangeCallback?;
     private onHelperVisibilityChangeCallback?;
     private options;
