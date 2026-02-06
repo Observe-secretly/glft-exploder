@@ -156,3 +156,64 @@
 @media (min-width: 768px) {
     .exploder-md-flex-row { flex-direction: row; }
 }
+
+/* 移动端侧边滚动引导层 - 参考 UI设计.md */
+.exploder-scroll-guide {
+    display: none;
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 12%;
+    z-index: 100;
+    background: rgba(239, 246, 255, 0.3); /* blue-50/30 */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-right: 1px solid rgba(219, 234, 254, 0.5); /* blue-100/50 */
+    border-radius: 0;
+    box-shadow: 4px 0 20px rgba(37, 99, 235, 0.05);
+    pointer-events: auto;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 6px;
+    transition: all 0.3s;
+}
+
+.exploder-scroll-texture {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    opacity: 0.25;
+    transition: opacity 0.2s;
+}
+
+.exploder-scroll-guide:active .exploder-scroll-texture {
+    opacity: 0.5;
+}
+
+.exploder-scroll-dot {
+    width: 4px;
+    height: 4px;
+    background: #2563EB; /* blue-600 */
+    border-radius: 50%;
+}
+
+.exploder-scroll-guide-label {
+    writing-mode: vertical-lr;
+    font-size: 8px;
+    font-weight: 800;
+    color: rgba(37, 99, 235, 0.4); /* blue-600/40 */
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    margin-top: 16px;
+    select-none: none;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+@media (max-width: 768px) {
+    .exploder-scroll-guide {
+        display: flex;
+    }
+}

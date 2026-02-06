@@ -1,6 +1,6 @@
 {
   "name": "gltf-exploder",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "A Three.js plugin for creating exploded views of glTF/GLB models with built-in UI",
   "author": "limin",
   "license": "MIT",

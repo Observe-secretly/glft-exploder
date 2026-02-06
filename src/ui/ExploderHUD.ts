@@ -27,7 +27,7 @@ export class ExploderHUD {
       bottom: 40px;
       left: 50%;
       transform: translateX(-50%);
-      width: 80%;
+      width: 72%;
       max-width: 600px;
       z-index: 100;
       pointer-events: auto;

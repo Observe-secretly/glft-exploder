@@ -13,6 +13,7 @@ class CompositeUI implements ExploderUI {
   private panel?: ExploderPanel;
   private hud?: ExploderHUD;
   private infoHUD?: ExploderInfoHUD;
+  private scrollGuide?: HTMLElement;
   private resizeHandler: () => void;
 
   constructor(
@@ -82,12 +83,50 @@ class CompositeUI implements ExploderUI {
       this.infoHUD = new ExploderInfoHUD(container, modelName, faceCount);
     }
 
+    // 创建移动端滚动引导层
+    this.createScrollGuide(container);
+
     // 初始更新响应式状态
     this.updateResponsiveState();
 
     // 监听窗口大小变化
     this.resizeHandler = this.updateResponsiveState.bind(this);
     window.addEventListener('resize', this.resizeHandler);
+  }
+
+  /**
+   * 创建移动端滚动引导层
+   * 允许用户在移动端通过侧边栏滚动页面，而不是操作 3D 模型
+   */
+  private createScrollGuide(container: HTMLElement) {
+    this.scrollGuide = document.createElement('div');
+    this.scrollGuide.className = 'exploder-scroll-guide';
+    
+    // 创建触感纹理 (Tactile Texture)
+    const texture = document.createElement('div');
+    texture.className = 'exploder-scroll-texture';
+    for (let i = 0; i < 10; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'exploder-scroll-dot';
+      texture.appendChild(dot);
+    }
+    
+    const label = document.createElement('div');
+    label.className = 'exploder-scroll-guide-label';
+    label.innerText = '滑动区域';
+    
+    this.scrollGuide.appendChild(texture);
+    this.scrollGuide.appendChild(label);
+    container.appendChild(this.scrollGuide);
+    
+    // 阻止 touchstart 冒泡到渲染器容器，从而允许原生滚动
+    this.scrollGuide.addEventListener('touchstart', (e) => {
+      e.stopPropagation();
+    }, { passive: true });
+    
+    this.scrollGuide.addEventListener('touchmove', (e) => {
+      e.stopPropagation();
+    }, { passive: true });
   }
 
   /**
