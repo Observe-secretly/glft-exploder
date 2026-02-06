@@ -136,8 +136,8 @@ export class ExploderCore {
   }
 
   /**
-   * 初始化 6 点位全方位光照系统
-   * 确保模型在所有角度都不会发黑
+   * 初始化 6 点位“无影灯”光照系统
+   * 灯光锁定在相机前方，随视角同步移动，确保模型永远被均匀照射
    * @private
    */
   private setupInternalLighting(): void {
@@ -151,29 +151,37 @@ export class ExploderCore {
     this.scene.add(hemisphereLight);
     this.internalLights.push(hemisphereLight);
 
-    // 3. 6 点位平行光（立方体 6 个面方向）
-    // 使用模型半径作为距离基准
-    const lightDist = this.modelRadius * 3;
+    // 3. 3 点位“无影灯”系统（锁定在相机坐标系）
+    // 我们将灯光添加为相机的子对象，这样它们会随相机旋转和移动
+    const lightGroup = new Object3D();
+    this.camera.add(lightGroup);
     
-    // 定义 6 个面方向
-    const vertices = [
-      [1, 0, 0], [-1, 0, 0],
-      [0, 1, 0], [0, -1, 0],
-      [0, 0, 1], [0, 0, -1]
-    ];
-
-    vertices.forEach(([x, y, z]) => {
+    // 环绕相机的 3 个点位，形成等边三角形无影灯阵列
+    const count = 3;
+    const radius = 3; 
+    
+    for (let i = 0; i < count; i++) {
+      // 0, 120, 240 度排列
+      const angle = (i / count) * Math.PI * 2;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      
       const light = new DirectionalLight(0xffffff, EXPLODER_CONSTANTS.LIGHTS.INTERNAL.DIRECTIONAL);
-      light.position.set(
-        this.modelCenter.x + x * lightDist,
-        this.modelCenter.y + y * lightDist,
-        this.modelCenter.z + z * lightDist
-      );
-      // 灯光指向模型中心
-      light.target = this.model;
-      this.scene.add(light);
+      
+      // 在相机本地坐标系中
+      light.position.set(x, y, 1); 
+      
+      const target = new Object3D();
+      target.position.set(0, 0, -5); // 统一指向相机正前方中心
+      lightGroup.add(target);
+      light.target = target;
+      
+      lightGroup.add(light);
       this.internalLights.push(light);
-    });
+    }
+
+    // 注意：如果使用的是全自动模式，camera 已经添加到 scene 中了
+    // 如果是手动集成模式，用户需要确保 camera 在 scene 中或者其变换会被更新
   }
   
   /**

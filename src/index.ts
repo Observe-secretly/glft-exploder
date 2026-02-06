@@ -110,18 +110,45 @@ export class GLTFExploder {
     }
 
     // 3. 添加灯光
-    this.scene.add(new AmbientLight(0xffffff, 0.6));
-    const sun = new DirectionalLight(0xffffff, 1);
-    sun.position.set(5, 10, 7.5);
+    // 基础环境光
+    this.scene.add(new AmbientLight(0xffffff, 0.4));
     
-    // 优化阴影配置，防止阴影暗斑（Shadow Acne）和闪烁
-    sun.castShadow = true;
-    sun.shadow.bias = -0.0001; // 微调偏置以消除自阴影伪影
-    sun.shadow.normalBias = 0.02; // 沿法线方向的偏置，对解决曲面阴影暗斑非常有效
-    sun.shadow.mapSize.width = 2048; // 提高阴影分辨率
-    sun.shadow.mapSize.height = 2048;
+    // 实现“无影灯”效果：创建一组锁定在相机前方的灯光
+    const cameraLightGroup = new Object3D();
+    this.camera.add(cameraLightGroup);
+    this.scene.add(this.camera); // 确保相机已添加到场景，其子对象才能渲染
+
+    // 核心主灯（稍微偏移相机中心）
+    const mainSun = new DirectionalLight(0xffffff, 0.8);
+    mainSun.position.set(2, 5, 5); // 相机本地坐标
+    mainSun.castShadow = true;
+    mainSun.shadow.bias = -0.0001;
+    mainSun.shadow.normalBias = 0.02;
+    mainSun.shadow.mapSize.width = 2048;
+    mainSun.shadow.mapSize.height = 2048;
     
-    this.scene.add(sun);
+    // 目标点位于相机前方
+    const mainTarget = new Object3D();
+    mainTarget.position.set(0, 0, -5);
+    cameraLightGroup.add(mainTarget);
+    mainSun.target = mainTarget;
+    cameraLightGroup.add(mainSun);
+
+    // 环绕无影灯（3 个补光点，配合核心主灯形成无影效果）
+    const fillCount = 3;
+    const fillRadius = 5;
+    for (let i = 0; i < fillCount; i++) {
+      const angle = (i / fillCount) * Math.PI * 2;
+      const fillLight = new DirectionalLight(0xffffff, 0.4);
+      fillLight.position.set(Math.cos(angle) * fillRadius, Math.sin(angle) * fillRadius, 2);
+      
+      const target = new Object3D();
+      target.position.set(0, 0, -5);
+      cameraLightGroup.add(target);
+      fillLight.target = target;
+      
+      cameraLightGroup.add(fillLight);
+    }
 
     // 4. 添加辅助器 (网格和坐标轴)
     this.gridHelper = new GridHelper(10, 10, 0xcccccc, 0x888888);
