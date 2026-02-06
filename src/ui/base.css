@@ -54,21 +54,57 @@
     background: transparent;
     cursor: pointer;
     width: 100%;
+    height: 32px; /* 增大整体点击感应区域 */
+    display: flex;
+    align-items: center;
 }
 .exploder-slider::-webkit-slider-runnable-track {
     background: #F3F4F6;
-    height: 4px;
-    border-radius: 2px;
+    height: 6px;
+    border-radius: 3px;
+    transition: background 0.2s;
+}
+.exploder-slider:active::-webkit-slider-runnable-track {
+    background: #E5E7EB;
 }
 .exploder-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    height: 16px;
-    width: 16px;
+    height: 18px;
+    width: 18px;
     background: var(--exploder-accent);
     border-radius: 50%;
     margin-top: -6px;
     border: 2px solid white;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.exploder-slider:active::-webkit-slider-thumb {
+    transform: scale(1.2);
+    box-shadow: 0 0 0 10px rgba(37, 99, 235, 0.1); /* 增加触摸反馈波纹 */
+}
+
+/* 针对移动端优化滑块触摸区域 */
+@media (max-width: 768px) {
+    .exploder-slider {
+        height: 44px; /* 移动端标准 44px 点击高度 */
+    }
+    .exploder-slider::-webkit-slider-thumb {
+        height: 28px;
+        width: 28px;
+        margin-top: -11px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+    }
+    
+    .exploder-slider::-moz-range-thumb {
+        height: 28px;
+        width: 28px;
+        border: 2px solid white;
+    }
+    
+    .exploder-slider::-webkit-slider-runnable-track {
+        height: 8px;
+        border-radius: 4px;
+    }
 }
 
 /* 模式选择按钮样式 */

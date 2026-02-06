@@ -1,4 +1,4 @@
-import { Object3D, Scene, Camera, WebGLRenderer, Vector3, PerspectiveCamera, AmbientLight, DirectionalLight, Color, ACESFilmicToneMapping, GridHelper, AxesHelper } from 'three';
+import { Object3D, Scene, Camera, WebGLRenderer, Vector3, PerspectiveCamera, AmbientLight, DirectionalLight, Color, ACESFilmicToneMapping, GridHelper, AxesHelper, TOUCH } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import './ui/base.css';
@@ -104,6 +104,15 @@ export class GLTFExploder {
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
+    
+    // 针对移动端优化
+    this.controls.enableZoom = true;
+    this.controls.enableRotate = true;
+    this.controls.enablePan = true;
+    this.controls.touches = {
+      ONE: TOUCH.ROTATE, // 单指旋转
+      TWO: TOUCH.DOLLY_PAN // 双指缩放和平移
+    };
 
     // 禁用缩放（如果开启了滚轮控制爆炸）
     if (this.options.wheelControlExplosion) {

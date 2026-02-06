@@ -6,6 +6,7 @@ export default defineConfig({
   root: 'example',
   publicDir: 'public',
   server: {
+    host: true, // 允许通过 IP 访问
     open: true,
     port: 3000,
     fs: {
