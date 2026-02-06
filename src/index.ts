@@ -111,7 +111,7 @@ export class GLTFExploder {
     }
 
     // 3. 添加灯光
-    // 基础环境光
+    // 基础保底光 (AmbientLight)，确保全局基本亮度，防止死角纯黑
     this.scene.add(new AmbientLight(0xffffff, 0.4));
     
     // 实现“无影灯”效果：创建一组锁定在相机前方的灯光
@@ -150,6 +150,16 @@ export class GLTFExploder {
       
       cameraLightGroup.add(fillLight);
     }
+
+    // 增加右上角强力填充灯 (主灯 0.8 * 0.8 = 0.64)
+    const extraFillLight = new DirectionalLight(0xffffff, 0.64);
+    // 右上角 (X=5, Y=5)，位置锁定在相机前方 (Z=2)
+    extraFillLight.position.set(5, 5, 2);
+    const extraTarget = new Object3D();
+    extraTarget.position.set(0, 0, -5);
+    cameraLightGroup.add(extraTarget);
+    extraFillLight.target = extraTarget;
+    cameraLightGroup.add(extraFillLight);
 
     // 4. 添加辅助器 (网格和坐标轴)
     this.gridHelper = new GridHelper(10, 10, 0xcccccc, 0x888888);

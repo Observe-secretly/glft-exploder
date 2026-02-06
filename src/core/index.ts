@@ -141,7 +141,7 @@ export class ExploderCore {
    * @private
    */
   private setupInternalLighting(): void {
-    // 1. 基础环境光，提供全局底色
+    // 1. 基础保底光 (AmbientLight)，确保没有任何死角是纯黑的
     const ambientLight = new AmbientLight(0xffffff, EXPLODER_CONSTANTS.LIGHTS.INTERNAL.AMBIENT);
     this.scene.add(ambientLight);
     this.internalLights.push(ambientLight);
@@ -179,6 +179,18 @@ export class ExploderCore {
       lightGroup.add(light);
       this.internalLights.push(light);
     }
+
+    // 4. 右上角强力填充灯 (锁定在相机坐标系，主灯强度的 80%)
+    const fillLightIntensity = EXPLODER_CONSTANTS.LIGHTS.INTERNAL.DIRECTIONAL * 0.8;
+    const topRightFill = new DirectionalLight(0xffffff, fillLightIntensity);
+    // 放在相机右上角 (X=5, Y=5)，深度位置与主阵列一致 (Z=2)
+    topRightFill.position.set(5, 5, 2); 
+    const fillTarget = new Object3D();
+    fillTarget.position.set(0, 0, -5); // 斜向指向相机前方中心
+    lightGroup.add(fillTarget);
+    topRightFill.target = fillTarget;
+    lightGroup.add(topRightFill);
+    this.internalLights.push(topRightFill);
 
     // 注意：如果使用的是全自动模式，camera 已经添加到 scene 中了
     // 如果是手动集成模式，用户需要确保 camera 在 scene 中或者其变换会被更新
