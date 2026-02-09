@@ -47,6 +47,7 @@ export type AxialChangeCallback = (vector: Vector3) => void;
  * 辅助显示状态变化回调函数
  */
 export type HelperVisibilityChangeCallback = (visible: boolean) => void;
+export type MeasureActiveChangeCallback = (active: boolean) => void;
 
 /**
  * UI 样式配置接口
@@ -223,6 +224,8 @@ export interface ExploderUI {
   updateHelperVisibility?(visible: boolean): void;
   /** 重置 UI 状态 */
   reset?(): void;
+  /** 每帧渲染更新 (用于同步相机透视等) */
+  render?(): void;
   /** 释放资源 */
   dispose(): void;
 }

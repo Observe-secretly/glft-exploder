@@ -16,7 +16,7 @@ declare class InteractionManager {
     private axesHelper;
     private axisLabels;
     private selectedMesh;
-    private hoveredMesh;
+    private enabled;
     private originalMaterialState;
     private onSelect;
     constructor(scene: Scene, camera: Camera, renderer: WebGLRenderer);
@@ -24,6 +24,11 @@ declare class InteractionManager {
      * 设置选中回调
      */
     setOnSelect(callback: (mesh: Mesh | null) => void): void;
+    /**
+     * 设置交互是否启用
+     * 当进行其他高优先级操作（如测量）时，可以禁用网格选中
+     */
+    setEnabled(enabled: boolean): void;
     /**
      * 初始化辅助器 (网格、轴等)
      */
@@ -50,11 +55,9 @@ declare class InteractionManager {
      */
     showAllMeshes(): void;
     /**
-     * 处理鼠标移动事件（悬停效果）
+     * 处理鼠标移动事件（移除悬停效果）
      */
     private onMouseMove;
-    private hoverMesh;
-    private unhoverMesh;
     /**
      * 处理点击事件
      */

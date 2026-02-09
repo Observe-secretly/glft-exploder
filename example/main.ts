@@ -12,9 +12,5 @@ const exploder = new GLTFExploder({
   adaptModel: true,                 // 开启自适应
   showUpload: true,                 // 开启本地上传功能
   showHelpers: true,                // 在控制面板显示辅助视图选项
-  // 如果不提供 models 数组，面板中将不会显示“模型资源”区块
-  // 但用户希望在 example 中只保留本地上传，我们需要调整 UI 逻辑或配置
   models: [] 
 });
-
-console.log('Example 极简模式已启动');

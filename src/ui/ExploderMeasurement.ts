@@ -1,0 +1,670 @@
+import { MeasurementTool } from '../core/MeasurementTool';
+import { MeasurementResult, SnapResult } from '../core/MeasurementTypes';
+import { Vector2, Vector3, Camera, Scene, Object3D } from 'three';
+
+/**
+ * 单次测量数据
+ */
+interface MeasurementData {
+  pinA: HTMLElement;
+  pinB: HTMLElement;
+  line: HTMLElement;
+  label: HTMLElement;
+  point1: Vector3;
+  point2: Vector3;
+  distance: number;
+}
+
+/**
+ * 测量 UI 组件
+ * 在 3D 视口中显示测量点、连线和距离标签,支持多个测量
+ */
+export class ExploderMeasurement {
+  public element: HTMLElement;
+  private visible: boolean = false;
+  
+  // 预览小蓝点
+  private previewDot: HTMLElement;
+  
+  // 多个测量数据
+  private measurements: MeasurementData[] = [];
+  
+  // 当前正在创建的测量
+  private currentPinA: HTMLElement | null = null;
+  private currentPoint1: Vector3 | null = null;
+  
+  // 测量工具
+  private measurementTool: MeasurementTool;
+  private camera: Camera;
+  private container: HTMLElement;
+  
+  // 交互状态
+  private isActive: boolean = false;
+  private clickCount: number = 0;
+  private currentSnap: SnapResult | null = null;
+  
+  // 预览线
+  private previewLine: HTMLElement;
+  
+  // 拖拽检测
+  private mouseDownPos: Vector2 = new Vector2();
+  private readonly dragThreshold: number = 3; // 像素阈值
+  
+  // 鼠标事件绑定
+  private boundMouseMove: (e: MouseEvent) => void;
+  private boundMouseDown: (e: MouseEvent) => void;
+  private boundMouseClick: (e: MouseEvent) => void;
+  
+  // 激活状态回调
+  private onActiveChange?: (active: boolean) => void;
+
+  constructor(
+    container: HTMLElement | string,
+    camera: Camera,
+    scene: Scene,
+    onActiveChange?: (active: boolean) => void
+  ) {
+    this.camera = camera;
+    this.onActiveChange = onActiveChange;
+    
+    // 创建测量工具
+    this.measurementTool = new MeasurementTool(camera, scene);
+    
+    // 创建根容器
+    this.element = document.createElement('div');
+    this.element.className = 'exploder-measurement-root';
+    this.applyStyle(this.element, `
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 50;
+      display: none;
+    `);
+
+    // 创建预览小蓝点
+    this.previewDot = this.createPreviewDot();
+    this.element.appendChild(this.previewDot);
+    
+    // 创建预览线
+    this.previewLine = document.createElement('div');
+    this.applyStyle(this.previewLine, `
+      position: absolute;
+      height: 2px;
+      border-top: 2px dashed rgba(37, 99, 235, 0.5);
+      pointer-events: none;
+      display: none;
+    `);
+    this.element.appendChild(this.previewLine);
+
+    // 挂载到容器
+    const target = typeof container === 'string' ? document.querySelector(container) : container;
+    this.container = (target || document.body) as HTMLElement;
+    this.container.appendChild(this.element);
+    
+    // 绑定事件处理器
+    this.boundMouseMove = this.handleMouseMove.bind(this);
+    this.boundMouseDown = this.handleMouseDown.bind(this);
+    this.boundMouseClick = this.handleMouseClick.bind(this);
+    
+    // 设置测量工具回调
+    this.setupMeasurementCallbacks();
+  }
+
+  /**
+   * 设置测量工具回调
+   */
+  private setupMeasurementCallbacks(): void {
+    this.measurementTool.onMeasureStart(() => {
+      console.log('[ExploderMeasurement] Measurement started');
+    });
+    
+    this.measurementTool.onMeasureComplete((result: MeasurementResult) => {
+      console.log('[ExploderMeasurement] Measurement complete:', result);
+    });
+    
+    this.measurementTool.onSnapDetected((snap: SnapResult) => {
+      this.currentSnap = snap;
+    });
+  }
+
+  /**
+   * 处理鼠标移动
+   */
+  private handleMouseMove(event: MouseEvent): void {
+    if (!this.isActive) return;
+    
+    // 转换为归一化设备坐标
+    const rect = this.container.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    const mousePos = new Vector2(x, y);
+    
+    // 检测吸附
+    const snap = this.measurementTool.detectSnap(mousePos);
+    
+    if (snap) {
+      // 有吸附点,显示预览小蓝点
+      this.currentSnap = snap;
+      this.updatePreviewDotPosition(snap.position);
+      this.previewDot.style.display = 'block';
+      
+      // 如果有第一个点,更新预览线
+      if (this.clickCount === 1 && this.currentPoint1) {
+        this.updateLineElement(this.previewLine, this.currentPoint1, snap.position);
+        this.previewLine.style.display = 'block';
+      }
+    } else {
+      // 没有吸附点,隐藏预览
+      this.previewDot.style.display = 'none';
+      this.currentSnap = null;
+      
+      if (this.clickCount === 1) {
+        this.previewLine.style.display = 'none';
+      }
+    }
+  }
+
+  private handleMouseDown(event: MouseEvent): void {
+    this.mouseDownPos.set(event.clientX, event.clientY);
+  }
+
+  /**
+   * 处理鼠标点击
+   */
+  private handleMouseClick(event: MouseEvent): void {
+    if (!this.isActive) return;
+
+    // 检测拖动位移
+    const moveDistance = Math.sqrt(
+      Math.pow(event.clientX - this.mouseDownPos.x, 2) +
+      Math.pow(event.clientY - this.mouseDownPos.y, 2)
+    );
+
+    // 如果位移超过阈值,认为是操作相机,不触发测量
+    if (moveDistance > this.dragThreshold) {
+      return;
+    }
+
+    if (!this.currentSnap) {
+      return;
+    }
+    
+    const snap = this.currentSnap;
+    
+    if (this.clickCount === 0) {
+      // 第一次点击 - 设置起点
+      this.currentPoint1 = snap.position.clone();
+      this.currentPinA = this.createPin();
+      this.updatePinPosition3D(this.currentPinA, snap.position);
+      this.currentPinA.style.display = 'flex';
+      this.element.appendChild(this.currentPinA);
+      this.previewDot.style.display = 'none';
+      this.clickCount = 1;
+    } else if (this.clickCount === 1 && this.currentPoint1 && this.currentPinA) {
+      // 第二次点击 - 完成测量
+      const point2 = snap.position.clone();
+      const distance = this.currentPoint1.distanceTo(point2);
+      
+      // 创建第二个大头针
+      const pinB = this.createPin();
+      this.updatePinPosition3D(pinB, point2);
+      pinB.style.display = 'flex';
+      this.element.appendChild(pinB);
+      
+      // 创建连接线
+      const line = document.createElement('div');
+      this.applyStyle(line, `
+        position: absolute;
+        height: 2px;
+        border-top: 2px dashed rgba(37, 99, 235, 0.8);
+        pointer-events: none;
+      `);
+      this.updateLineElement(line, this.currentPoint1, point2);
+      this.element.appendChild(line);
+      
+      // 创建标签
+      const label = this.createCompactLabel(distance, this.measurements.length);
+      this.updateLabelPosition(label, this.currentPoint1, point2);
+      this.element.appendChild(label);
+      
+      // 保存测量数据
+      const measurement: MeasurementData = {
+        pinA: this.currentPinA,
+        pinB: pinB,
+        line: line,
+        label: label,
+        point1: this.currentPoint1,
+        point2: point2,
+        distance: distance
+      };
+      this.measurements.push(measurement);
+      
+      // 重置状态,准备下一次测量
+      this.previewDot.style.display = 'none';
+      this.previewLine.style.display = 'none';
+      this.currentPinA = null;
+      this.currentPoint1 = null;
+      this.clickCount = 0;
+      
+      console.log(`[ExploderMeasurement] Measurement #${this.measurements.length} complete: ${distance.toFixed(2)} mm`);
+    }
+  }
+
+  /**
+   * 创建预览大头针 (替代原来的小蓝点)
+   */
+  private createPreviewDot(): HTMLElement {
+    const pin = document.createElement('div');
+    pin.className = 'exploder-preview-pin';
+    this.applyStyle(pin, `
+      position: absolute;
+      transform: translate(-50%, -100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: none;
+      display: none;
+      z-index: 100;
+      opacity: 0.6;
+    `);
+
+    // SVG 图标 (调整路径以消除间隙，优化比例)
+    pin.innerHTML = `
+      <svg width="21" height="27" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 4px rgba(37, 99, 235, 0.3)); display: block;">
+        <path d="M14 36L8 22H20L14 36Z" fill="#2563EB"/>
+        <circle cx="14" cy="14" r="10" fill="#2563EB" stroke="white" stroke-width="2.5"/>
+        <circle cx="14" cy="14" r="3.5" fill="white" opacity="0.9"/>
+      </svg>
+    `;
+
+    return pin;
+  }
+
+  /**
+   * 创建大头针
+   */
+  private createPin(): HTMLElement {
+    const pin = document.createElement('div');
+    pin.className = 'exploder-measure-pin';
+    this.applyStyle(pin, `
+      position: absolute;
+      transform: translate(-50%, -100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: none;
+      z-index: 1;
+    `);
+
+    // SVG 图标 (调整路径以消除间隙，优化比例)
+    pin.innerHTML = `
+      <svg width="21" height="27" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 4px rgba(37, 99, 235, 0.3)); display: block;">
+        <path d="M14 36L8 22H20L14 36Z" fill="#2563EB"/>
+        <circle cx="14" cy="14" r="10" fill="#2563EB" stroke="white" stroke-width="2.5"/>
+        <circle cx="14" cy="14" r="3.5" fill="white" opacity="0.9"/>
+      </svg>
+    `;
+
+    return pin;
+  }
+
+  /**
+   * 创建紧凑型距离标签
+   */
+  private createCompactLabel(distance: number, index: number): HTMLElement {
+    const label = document.createElement('div');
+    label.className = 'exploder-measure-label';
+    this.applyStyle(label, `
+      position: absolute;
+      z-index: 2;
+      pointer-events: auto;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 4px 10px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      transition: all 0.2s;
+    `);
+
+    // 距离值
+    const value = document.createElement('span');
+    value.textContent = `${(distance * 1000).toFixed(2)}`;
+    this.applyStyle(value, `
+      font-weight: 700;
+      color: #1F2937;
+      font-family: 'Courier New', monospace;
+    `);
+
+    // 单位
+    const unit = document.createElement('span');
+    unit.textContent = 'mm';
+    this.applyStyle(unit, `
+      font-weight: 600;
+      color: #2563EB;
+      font-size: 10px;
+    `);
+
+    // 删除按钮 (默认隐藏)
+    const deleteBtn = document.createElement('button');
+    deleteBtn.title = '删除';
+    this.applyStyle(deleteBtn, `
+      width: 16px;
+      height: 16px;
+      border: none;
+      background: transparent;
+      color: #9CA3AF;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      margin-left: 2px;
+      border-radius: 4px;
+      transition: all 0.15s;
+    `);
+    deleteBtn.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 6L6 18"></path>
+        <path d="M6 6l12 12"></path>
+      </svg>
+    `;
+
+    // 悬停显示删除按钮
+    label.addEventListener('mouseenter', () => {
+      deleteBtn.style.display = 'flex';
+      label.style.paddingRight = '6px';
+    });
+    label.addEventListener('mouseleave', () => {
+      deleteBtn.style.display = 'none';
+      label.style.paddingRight = '10px';
+    });
+
+    // 删除按钮悬停效果
+    deleteBtn.addEventListener('mouseenter', () => {
+      deleteBtn.style.color = '#EF4444';
+      deleteBtn.style.background = 'rgba(239, 68, 68, 0.1)';
+    });
+    deleteBtn.addEventListener('mouseleave', () => {
+      deleteBtn.style.color = '#9CA3AF';
+      deleteBtn.style.background = 'transparent';
+    });
+
+    // 删除点击事件
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.deleteMeasurement(index);
+    });
+
+    label.appendChild(value);
+    label.appendChild(unit);
+    label.appendChild(deleteBtn);
+
+    return label;
+  }
+
+  /**
+   * 删除指定测量
+   */
+  private deleteMeasurement(index: number): void {
+    const measurement = this.measurements[index];
+    if (!measurement) return;
+    
+    // 移除 DOM 元素
+    measurement.pinA.remove();
+    measurement.pinB.remove();
+    measurement.line.remove();
+    measurement.label.remove();
+    
+    // 从数组中移除
+    this.measurements.splice(index, 1);
+    
+    // 更新剩余标签的索引
+    this.measurements.forEach((m, i) => {
+      const deleteBtn = m.label.querySelector('button');
+      if (deleteBtn) {
+        deleteBtn.onclick = (e) => {
+          e.stopPropagation();
+          this.deleteMeasurement(i);
+        };
+      }
+    });
+    
+    console.log(`[ExploderMeasurement] Deleted measurement, ${this.measurements.length} remaining`);
+  }
+
+  /**
+   * 更新预览点位置
+   */
+  private updatePreviewDotPosition(worldPos: Vector3): void {
+    const screenPos = worldPos.clone().project(this.camera);
+    const rect = this.container.getBoundingClientRect();
+    const x = (screenPos.x * 0.5 + 0.5) * rect.width;
+    const y = (-screenPos.y * 0.5 + 0.5) * rect.height;
+    
+    this.previewDot.style.left = `${x}px`;
+    this.previewDot.style.top = `${y}px`;
+  }
+
+  /**
+   * 更新大头针位置
+   */
+  private updatePinPosition3D(pin: HTMLElement, worldPos: Vector3): void {
+    const screenPos = worldPos.clone().project(this.camera);
+    const rect = this.container.getBoundingClientRect();
+    const x = (screenPos.x * 0.5 + 0.5) * rect.width;
+    const y = (-screenPos.y * 0.5 + 0.5) * rect.height;
+    
+    pin.style.left = `${x}px`;
+    pin.style.top = `${y}px`;
+  }
+
+  /**
+   * 更新线元素
+   */
+  private updateLineElement(line: HTMLElement, start: Vector3, end: Vector3): void {
+    const startScreen = start.clone().project(this.camera);
+    const endScreen = end.clone().project(this.camera);
+    
+    const rect = this.container.getBoundingClientRect();
+    const x1 = (startScreen.x * 0.5 + 0.5) * rect.width;
+    const y1 = (-startScreen.y * 0.5 + 0.5) * rect.height;
+    const x2 = (endScreen.x * 0.5 + 0.5) * rect.width;
+    const y2 = (-endScreen.y * 0.5 + 0.5) * rect.height;
+    
+    const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+    const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
+    
+    line.style.left = `${x1}px`;
+    line.style.top = `${y1}px`;
+    line.style.width = `${length}px`;
+    line.style.transform = `rotate(${angle}deg)`;
+    line.style.transformOrigin = 'left';
+  }
+
+  /**
+   * 更新所有测量 UI 元素的位置 (同步相机视角)
+   */
+  public update(): void {
+    // 1. 更新正在进行的测量预览
+    if (this.isActive && this.clickCount === 1 && this.currentPoint1) {
+      this.updatePinPosition3D(this.currentPinA!, this.currentPoint1);
+      if (this.currentSnap) {
+        this.updatePreviewDotPosition(this.currentSnap.position);
+        this.updateLineElement(this.previewLine, this.currentPoint1, this.currentSnap.position);
+      }
+    } else if (this.isActive && this.currentSnap) {
+      this.updatePreviewDotPosition(this.currentSnap.position);
+    }
+
+    // 2. 更新已完成的测量
+    for (const measurement of this.measurements) {
+      this.updatePinPosition3D(measurement.pinA, measurement.point1);
+      this.updatePinPosition3D(measurement.pinB, measurement.point2);
+      this.updateLineElement(measurement.line, measurement.point1, measurement.point2);
+      this.updateLabelPosition(measurement.label, measurement.point1, measurement.point2);
+    }
+  }
+
+  /**
+   * 更新标签位置(中点), 并处理小距离遮挡问题
+   */
+  private updateLabelPosition(label: HTMLElement, start: Vector3, end: Vector3): void {
+    const startScreen = start.clone().project(this.camera);
+    const endScreen = end.clone().project(this.camera);
+    
+    const rect = this.container.getBoundingClientRect();
+    const x1 = (startScreen.x * 0.5 + 0.5) * rect.width;
+    const y1 = (-startScreen.y * 0.5 + 0.5) * rect.height;
+    const x2 = (endScreen.x * 0.5 + 0.5) * rect.width;
+    const y2 = (-endScreen.y * 0.5 + 0.5) * rect.height;
+    
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+    
+    // 计算屏幕距离
+    const screenDist = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+    
+    // 如果测量距离很小，将标签向上偏移以防遮挡大头针
+    let offsetY = 0;
+    if (screenDist < 80) {
+      offsetY = -40; // 向上偏移 40 像素
+    }
+    
+    label.style.left = `${midX}px`;
+    label.style.top = `${midY + offsetY}px`;
+    label.style.transform = 'translate(-50%, -50%)';
+  }
+
+  /**
+   * 构建模型的吸附结构
+   */
+  public buildSnapStructures(model: Object3D): void {
+    this.measurementTool.buildSnapStructures(model);
+  }
+
+  /**
+   * 显示测量 UI
+   */
+  public show(): void {
+    this.visible = true;
+    this.isActive = true;
+    this.element.style.display = 'block';
+    
+    // 添加自定义光标 (用户要求移除，使用默认光标)
+    // this.container.classList.add('exploder-measurement-cursor');
+    
+    // 启用测量模式
+    this.measurementTool.enableMeasurement();
+    
+    // 添加事件监听
+    this.container.addEventListener('mousemove', this.boundMouseMove);
+    this.container.addEventListener('mousedown', this.boundMouseDown);
+    this.container.addEventListener('click', this.boundMouseClick);
+    
+    // 通知状态变化
+    if (this.onActiveChange) {
+      this.onActiveChange(true);
+    }
+    
+    console.log('[ExploderMeasurement] Measurement mode activated');
+  }
+
+  /**
+   * 隐藏测量 UI
+   */
+  public hide(): void {
+    this.visible = false;
+    this.isActive = false;
+    this.element.style.display = 'none';
+    
+    // 移除自定义光标
+    // this.container.classList.remove('exploder-measurement-cursor');
+    
+    // 禁用测量模式
+    this.measurementTool.disableMeasurement();
+    
+    // 移除事件监听
+    this.container.removeEventListener('mousemove', this.boundMouseMove);
+    this.container.removeEventListener('mousedown', this.boundMouseDown);
+    this.container.removeEventListener('click', this.boundMouseClick);
+    
+    // 重置当前测量状态(但保留已完成的测量)
+    this.resetCurrentMeasurement();
+    
+    // 通知状态变化
+    if (this.onActiveChange) {
+      this.onActiveChange(false);
+    }
+    
+    console.log('[ExploderMeasurement] Measurement mode deactivated');
+  }
+
+  /**
+   * 切换显示状态
+   */
+  public toggle(): void {
+    if (this.visible) {
+      this.hide();
+    } else {
+      this.show();
+    }
+  }
+
+  /**
+   * 重置当前正在进行的测量
+   */
+  private resetCurrentMeasurement(): void {
+    if (this.currentPinA) {
+      this.currentPinA.remove();
+      this.currentPinA = null;
+    }
+    this.currentPoint1 = null;
+    this.clickCount = 0;
+    this.currentSnap = null;
+    this.previewDot.style.display = 'none';
+    this.previewLine.style.display = 'none';
+  }
+
+  /**
+   * 清除所有测量
+   */
+  public clearAll(): void {
+    // 删除所有测量元素
+    for (const measurement of this.measurements) {
+      measurement.pinA.remove();
+      measurement.pinB.remove();
+      measurement.line.remove();
+      measurement.label.remove();
+    }
+    this.measurements = [];
+    
+    // 重置当前测量
+    this.resetCurrentMeasurement();
+    
+    console.log('[ExploderMeasurement] All measurements cleared');
+  }
+
+  /**
+   * 释放资源
+   */
+  public dispose(): void {
+    this.hide();
+    this.clearAll();
+    this.measurementTool.dispose();
+    
+    if (this.element.parentNode) {
+      this.element.parentNode.removeChild(this.element);
+    }
+  }
+
+  private applyStyle(el: HTMLElement, style: string) {
+    const old = el.getAttribute('style') || '';
+    el.setAttribute('style', old + style);
+  }
+}

@@ -16,9 +16,9 @@
 
 /* 视口网格背景 */
 .exploder-viewport-grid {
-    background-image: 
-        linear-gradient(to right, rgba(0,0,0,0.03) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(0,0,0,0.03) 1px, transparent 1px);
+    background-image:
+        linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
     background-size: 40px 40px;
 }
 
@@ -30,18 +30,28 @@
     border-radius: 50%;
     display: inline-block;
 }
+
 .exploder-animate-pulse {
     animation: exploder-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
 @keyframes exploder-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: .5; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: .5;
+    }
 }
 
 /* 自定义滚动条 */
 .exploder-scrollbar::-webkit-scrollbar {
     width: 4px;
 }
+
 .exploder-scrollbar::-webkit-scrollbar-thumb {
     background: var(--exploder-border);
     border-radius: 10px;
@@ -54,19 +64,23 @@
     background: transparent;
     cursor: pointer;
     width: 100%;
-    height: 32px; /* 增大整体点击感应区域 */
+    height: 32px;
+    /* 增大整体点击感应区域 */
     display: flex;
     align-items: center;
 }
+
 .exploder-slider::-webkit-slider-runnable-track {
     background: #F3F4F6;
     height: 6px;
     border-radius: 3px;
     transition: background 0.2s;
 }
+
 .exploder-slider:active::-webkit-slider-runnable-track {
     background: #E5E7EB;
 }
+
 .exploder-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     height: 18px;
@@ -75,32 +89,36 @@
     border-radius: 50%;
     margin-top: -6px;
     border: 2px solid white;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: transform 0.2s, box-shadow 0.2s;
 }
+
 .exploder-slider:active::-webkit-slider-thumb {
     transform: scale(1.2);
-    box-shadow: 0 0 0 10px rgba(37, 99, 235, 0.1); /* 增加触摸反馈波纹 */
+    box-shadow: 0 0 0 10px rgba(37, 99, 235, 0.1);
+    /* 增加触摸反馈波纹 */
 }
 
 /* 针对移动端优化滑块触摸区域 */
 @media (max-width: 768px) {
     .exploder-slider {
-        height: 44px; /* 移动端标准 44px 点击高度 */
+        height: 44px;
+        /* 移动端标准 44px 点击高度 */
     }
+
     .exploder-slider::-webkit-slider-thumb {
         height: 28px;
         width: 28px;
         margin-top: -11px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
     }
-    
+
     .exploder-slider::-moz-range-thumb {
         height: 28px;
         width: 28px;
         border: 2px solid white;
     }
-    
+
     .exploder-slider::-webkit-slider-runnable-track {
         height: 8px;
         border-radius: 4px;
@@ -123,9 +141,11 @@
     transition: all 0.2s;
     cursor: pointer;
 }
+
 .exploder-mode-btn:hover {
     border-color: var(--exploder-border);
 }
+
 .exploder-mode-btn.active {
     background: #EFF6FF;
     border-color: #BFDBFE;
@@ -141,20 +161,57 @@
 }
 
 /* 布局辅助类 - 内部使用 */
-.exploder-h-screen { height: 100vh; }
-.exploder-flex { display: flex; }
-.exploder-flex-col { flex-direction: column; }
-.exploder-flex-row { flex-direction: row; }
-.exploder-flex-1 { flex: 1 1 0%; }
-.exploder-relative { position: relative; }
-.exploder-absolute { position: absolute; }
-.exploder-inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
-.exploder-overflow-hidden { overflow: hidden; }
-.exploder-bg-white { background-color: var(--exploder-bg-main); }
-.exploder-z-20 { z-index: 20; }
+.exploder-h-screen {
+    height: 100vh;
+}
+
+.exploder-flex {
+    display: flex;
+}
+
+.exploder-flex-col {
+    flex-direction: column;
+}
+
+.exploder-flex-row {
+    flex-direction: row;
+}
+
+.exploder-flex-1 {
+    flex: 1 1 0%;
+}
+
+.exploder-relative {
+    position: relative;
+}
+
+.exploder-absolute {
+    position: absolute;
+}
+
+.exploder-inset-0 {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+}
+
+.exploder-overflow-hidden {
+    overflow: hidden;
+}
+
+.exploder-bg-white {
+    background-color: var(--exploder-bg-main);
+}
+
+.exploder-z-20 {
+    z-index: 20;
+}
 
 @media (min-width: 768px) {
-    .exploder-md-flex-row { flex-direction: row; }
+    .exploder-md-flex-row {
+        flex-direction: row;
+    }
 }
 
 /* 移动端侧边滚动引导层 - 参考 UI设计.md */
@@ -166,10 +223,12 @@
     bottom: 0;
     width: 12%;
     z-index: 100;
-    background: rgba(239, 246, 255, 0.3); /* blue-50/30 */
+    background: rgba(239, 246, 255, 0.3);
+    /* blue-50/30 */
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border-right: 1px solid rgba(219, 234, 254, 0.5); /* blue-100/50 */
+    border-right: 1px solid rgba(219, 234, 254, 0.5);
+    /* blue-100/50 */
     border-radius: 0;
     box-shadow: 4px 0 20px rgba(37, 99, 235, 0.05);
     pointer-events: auto;
@@ -195,7 +254,8 @@
 .exploder-scroll-dot {
     width: 4px;
     height: 4px;
-    background: #2563EB; /* blue-600 */
+    background: #2563EB;
+    /* blue-600 */
     border-radius: 50%;
 }
 
@@ -203,11 +263,12 @@
     writing-mode: vertical-lr;
     font-size: 8px;
     font-weight: 800;
-    color: rgba(37, 99, 235, 0.4); /* blue-600/40 */
+    color: rgba(37, 99, 235, 0.4);
+    /* blue-600/40 */
     text-transform: uppercase;
     letter-spacing: 0.3em;
     margin-top: 16px;
-    select-none: none;
+    user-select: none;
     white-space: nowrap;
     pointer-events: none;
 }
@@ -215,5 +276,21 @@
 @media (max-width: 768px) {
     .exploder-scroll-guide {
         display: flex;
+    }
+}
+
+/* 测量模式自定义光标已移除 */
+
+
+/* 测量功能动画 */
+@keyframes exploder-bounce-slow {
+
+    0%,
+    100% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-8px);
     }
 }

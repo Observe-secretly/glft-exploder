@@ -216,6 +216,12 @@ export class GLTFExploder {
   private animate(): void {
     requestAnimationFrame(this.animate.bind(this));
     if (this.controls) this.controls.update();
+    
+    // 更新 UI (例如同步相机视角的测量线)
+    if (this.ui && this.ui.render) {
+      this.ui.render();
+    }
+
     if (this.renderer && this.scene && this.camera) {
       this.renderer.render(this.scene, this.camera);
     }
@@ -268,6 +274,9 @@ export class GLTFExploder {
     if (options.createUI !== false && !this.ui) {
       this.ui = createUI(
         options,
+        camera,
+        scene,
+        model,
         this.setProgress.bind(this),
         this.setMultiplier.bind(this),
         this.setExposure.bind(this),
@@ -275,6 +284,11 @@ export class GLTFExploder {
         this.setAxialVector.bind(this),
         this.handleModelChange.bind(this),
         this.handleHelperVisibilityChange.bind(this),
+        (active: boolean) => {
+          if (this.interactionManager) {
+            this.interactionManager.setEnabled(!active);
+          }
+        },
         this.reset.bind(this),
         EXPLODER_CONSTANTS.PROGRESS.DEFAULT,
         EXPLODER_CONSTANTS.MULTIPLIER.DEFAULT,

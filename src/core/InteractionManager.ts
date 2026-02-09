@@ -21,7 +21,8 @@ export class InteractionManager {
 
   // 当前选中的网格
   private selectedMesh: Mesh | null = null;
-  private hoveredMesh: Mesh | null = null;
+  // private hoveredMesh: Mesh | null = null; // 移除悬停状态
+  private enabled: boolean = true; // 是否启用交互控制
   // 原始材质属性缓存
   private originalMaterialState: Map<string, { emissive: Color, emissiveIntensity: number, color?: Color }> = new Map();
   private onSelect: ((mesh: Mesh | null) => void) | null = null;
@@ -48,6 +49,18 @@ export class InteractionManager {
    */
   public setOnSelect(callback: (mesh: Mesh | null) => void): void {
     this.onSelect = callback;
+  }
+
+  /**
+   * 设置交互是否启用
+   * 当进行其他高优先级操作（如测量）时，可以禁用网格选中
+   */
+  public setEnabled(enabled: boolean): void {
+    this.enabled = enabled;
+    if (!enabled) {
+      // 禁用时清理当前悬停和选中状态（可选，根据需求决定是否取消选中）
+      // this.deselectMesh(); 
+    }
   }
 
   /**
@@ -107,6 +120,8 @@ export class InteractionManager {
    * 处理双击事件
    */
   private onDoubleClick(event: MouseEvent): void {
+    if (!this.enabled) return;
+
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -145,13 +160,15 @@ export class InteractionManager {
   }
 
   /**
-   * 处理鼠标移动事件（悬停效果）
+   * 处理鼠标移动事件（移除悬停效果）
    */
   private onMouseMove(event: MouseEvent): void {
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
+    // 禁用悬停高亮逻辑，只需更新鼠标位置即可
+    /*
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.scene.children, true);
     const meshIntersect = intersects.find(intersect => (intersect.object as any).isMesh);
@@ -165,8 +182,10 @@ export class InteractionManager {
     } else {
       this.unhoverMesh();
     }
+    */
   }
 
+  /*
   private hoverMesh(mesh: Mesh): void {
     this.hoveredMesh = mesh;
     if (!mesh.material) return;
@@ -214,11 +233,14 @@ export class InteractionManager {
     this.hoveredMesh = null;
     this.renderer.domElement.style.cursor = 'auto';
   }
+  */
 
   /**
    * 处理点击事件
    */
   private onClick(event: MouseEvent): void {
+    if (!this.enabled) return;
+
     // 检测是否是拖拽：计算按下和松开时的位移
     const moveDistance = Math.sqrt(
       Math.pow(event.clientX - this.mouseDownPos.x, 2) +

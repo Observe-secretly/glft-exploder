@@ -1,9 +1,10 @@
-import { ExploderUI, ExploderOptions, ProgressChangeCallback, MultiplierChangeCallback, ExposureChangeCallback, ExplosionMode, ModeChangeCallback, AxialChangeCallback, ModelChangeCallback, HelperVisibilityChangeCallback, EXPLODER_CONSTANTS } from '../core/types';
+import { ExploderUI, ExploderOptions, ProgressChangeCallback, MultiplierChangeCallback, ExposureChangeCallback, ExplosionMode, ModeChangeCallback, AxialChangeCallback, ModelChangeCallback, HelperVisibilityChangeCallback, MeasureActiveChangeCallback, EXPLODER_CONSTANTS } from '../core/types';
 import { ExploderPanel } from './ExploderPanel';
 import { ExploderHUD } from './ExploderHUD';
 import { ExploderInfoHUD } from './ExploderInfoHUD';
+import { ExploderMeasurement } from './ExploderMeasurement';
 import { getContainer, isMobile } from '../core/utils';
-import { Vector3 } from 'three';
+import { Vector3, Camera, Scene, Object3D } from 'three';
 
 /**
  * 复合 UI 类，管理面板和 HUD
@@ -13,11 +14,15 @@ class CompositeUI implements ExploderUI {
   private panel?: ExploderPanel;
   private hud?: ExploderHUD;
   private infoHUD?: ExploderInfoHUD;
+  private measurement?: ExploderMeasurement;
   private scrollGuide?: HTMLElement;
   private resizeHandler: () => void;
 
   constructor(
     container: HTMLElement,
+    camera: Camera,
+    scene: Scene,
+    model: Object3D,
     onProgressChange: ProgressChangeCallback,
     onMultiplierChange: MultiplierChangeCallback,
     onExposureChange?: ExposureChangeCallback,
@@ -25,6 +30,7 @@ class CompositeUI implements ExploderUI {
     onAxialChange?: AxialChangeCallback,
     onModelChange?: ModelChangeCallback,
     onHelperVisibilityChange?: HelperVisibilityChangeCallback,
+    onMeasureActiveChange?: MeasureActiveChangeCallback,
     onReset?: () => void,
     initialProgress = EXPLODER_CONSTANTS.PROGRESS.DEFAULT,
     initialMultiplier = EXPLODER_CONSTANTS.MULTIPLIER.DEFAULT,
@@ -74,8 +80,29 @@ class CompositeUI implements ExploderUI {
       this.hud = new ExploderHUD(
         container,
         onProgressChange,
-        initialProgress
+        initialProgress,
+        () => this.toggleMeasurement()
       );
+    }
+
+    // 创建测量组件 (默认隐藏)
+    this.measurement = new ExploderMeasurement(
+      container, 
+      camera, 
+      scene,
+      (active) => {
+        if (this.hud) {
+          this.hud.setMeasureActive(active);
+        }
+        if (onMeasureActiveChange) {
+          onMeasureActiveChange(active);
+        }
+      }
+    );
+    
+    // 构建吸附数据结构
+    if (this.measurement && model) {
+      this.measurement.buildSnapStructures(model);
     }
 
     // 创建信息 HUD (左上角)
@@ -203,11 +230,22 @@ class CompositeUI implements ExploderUI {
     this.hud?.update(EXPLODER_CONSTANTS.PROGRESS.DEFAULT);
   }
 
+  render() {
+    if (this.measurement) {
+      this.measurement.update();
+    }
+  }
+
+  toggleMeasurement() {
+    this.measurement?.toggle();
+  }
+
   dispose() {
     window.removeEventListener('resize', this.resizeHandler);
     this.panel?.dispose();
     this.hud?.dispose();
     this.infoHUD?.dispose();
+    this.measurement?.dispose();
   }
 }
 
@@ -231,6 +269,9 @@ class CompositeUI implements ExploderUI {
  */
 export function createUI(
   options: ExploderOptions,
+  camera: Camera,
+  scene: Scene,
+  model: Object3D,
   onProgressChange: ProgressChangeCallback,
   onMultiplierChange: MultiplierChangeCallback,
   onExposureChange?: ExposureChangeCallback,
@@ -238,6 +279,7 @@ export function createUI(
   onAxialChange?: AxialChangeCallback,
   onModelChange?: ModelChangeCallback,
   onHelperVisibilityChange?: HelperVisibilityChangeCallback,
+  onMeasureActiveChange?: MeasureActiveChangeCallback,
   onReset?: () => void,
   initialProgress = EXPLODER_CONSTANTS.PROGRESS.DEFAULT,
   initialMultiplier = EXPLODER_CONSTANTS.MULTIPLIER.DEFAULT,
@@ -267,6 +309,9 @@ export function createUI(
 
   return new CompositeUI(
     container,
+    camera,
+    scene,
+    model,
     onProgressChange,
     onMultiplierChange,
     onExposureChange,
@@ -274,6 +319,7 @@ export function createUI(
     onAxialChange,
     onModelChange,
     onHelperVisibilityChange,
+    onMeasureActiveChange,
     onReset,
     initialProgress,
     initialMultiplier,

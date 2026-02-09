@@ -10,14 +10,19 @@ export class ExploderHUD {
   private liquidGlass?: LiquidGlass;
   private slider: HTMLInputElement;
   private valueDisplay: HTMLSpanElement;
+  private measureButton: HTMLButtonElement;
   private onProgressChange: ProgressChangeCallback;
+  private onMeasureToggle?: () => void;
+  private isMeasureActive: boolean = false;
 
   constructor(
     container: HTMLElement | string,
     onProgressChange: ProgressChangeCallback,
-    initialProgress = EXPLODER_CONSTANTS.PROGRESS.DEFAULT
+    initialProgress = EXPLODER_CONSTANTS.PROGRESS.DEFAULT,
+    onMeasureToggle?: () => void
   ) {
     this.onProgressChange = onProgressChange;
+    this.onMeasureToggle = onMeasureToggle;
 
     // 1. 创建 HUD 容器
     this.element = document.createElement('div');
@@ -103,6 +108,89 @@ export class ExploderHUD {
     `);
     progressContainer.appendChild(this.slider);
 
+    // 7. 分隔线 (仅在桌面端显示)
+    const divider = document.createElement('div');
+    this.applyStyle(divider, `
+      height: 32px;
+      width: 1px;
+      background: rgba(229, 231, 235, 0.6);
+      display: none;
+    `);
+    // 桌面端显示分隔线
+    if (window.matchMedia('(min-width: 640px)').matches) {
+      divider.style.display = 'block';
+    }
+    card.appendChild(divider);
+
+    // 8. 测量按钮
+    this.measureButton = document.createElement('button');
+    this.measureButton.className = 'exploder-measure-button';
+    this.measureButton.title = '测量';
+    this.applyStyle(this.measureButton, `
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+      background: #2563EB;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid rgba(229, 231, 235, 0.5);
+    `);
+    
+    // 初始颜色为灰色/浅色
+    this.updateMeasureButtonStyle();
+    
+    this.measureButton.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;">
+        <path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"></path>
+        <path d="m14.5 12.5 2-2"></path>
+        <path d="m11.5 9.5 2-2"></path>
+        <path d="m8.5 6.5 2-2"></path>
+        <path d="m17.5 15.5 2-2"></path>
+      </svg>
+    `;
+
+    // 测量按钮悬停效果
+    this.measureButton.addEventListener('mouseenter', () => {
+      this.measureButton.style.transform = 'scale(1.08)';
+      if (!this.isMeasureActive) {
+        this.measureButton.style.background = 'rgba(243, 244, 246, 1)';
+        this.measureButton.style.color = '#3B82F6';
+      }
+      const svg = this.measureButton.querySelector('svg');
+      if (svg) svg.style.transform = 'rotate(12deg)';
+    });
+    this.measureButton.addEventListener('mouseleave', () => {
+      this.measureButton.style.transform = 'scale(1)';
+      if (!this.isMeasureActive) {
+        this.measureButton.style.background = 'rgba(255, 255, 255, 0.6)';
+        this.measureButton.style.color = '#6B7280';
+      }
+      const svg = this.measureButton.querySelector('svg');
+      if (svg) svg.style.transform = 'rotate(0deg)';
+    });
+    this.measureButton.addEventListener('mousedown', () => {
+      this.measureButton.style.transform = 'scale(0.95)';
+    });
+    this.measureButton.addEventListener('mouseup', () => {
+      this.measureButton.style.transform = 'scale(1.05)';
+    });
+
+    // 测量按钮点击事件
+    this.measureButton.addEventListener('click', () => {
+      if (this.onMeasureToggle) {
+        this.onMeasureToggle();
+      }
+    });
+
+    card.appendChild(this.measureButton);
+
     // 事件绑定
     this.slider.oninput = (e) => {
       const v = parseFloat((e.target as HTMLInputElement).value);
@@ -119,6 +207,34 @@ export class ExploderHUD {
       width: 600,
       height: 80
     });
+  }
+
+  /**
+   * 设置测量模式激活状态
+   * @param active 是否激活
+   */
+  public setMeasureActive(active: boolean): void {
+    this.isMeasureActive = active;
+    this.updateMeasureButtonStyle();
+  }
+
+  /**
+   * 更新测量按钮样式
+   */
+  private updateMeasureButtonStyle(): void {
+    if (this.isMeasureActive) {
+      this.applyStyle(this.measureButton, `
+        background: #2563EB;
+        color: white;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+      `);
+    } else {
+      this.applyStyle(this.measureButton, `
+        background: rgba(255, 255, 255, 0.6);
+        color: #6B7280;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      `);
+    }
   }
 
   public update(progress: number): void {
