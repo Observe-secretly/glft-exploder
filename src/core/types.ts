@@ -222,6 +222,8 @@ export interface ExploderUI {
   updateInfo?(name: string, faceCount: number): void;
   /** 更新辅助显示状态 */
   updateHelperVisibility?(visible: boolean): void;
+  /** 更新模型缩放比例 (用于测量归一化) */
+  updateModelScale?(scale: number): void;
   /** 重置 UI 状态 */
   reset?(): void;
   /** 每帧渲染更新 (用于同步相机透视等) */

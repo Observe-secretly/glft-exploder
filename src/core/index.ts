@@ -34,6 +34,8 @@ export class ExploderCore {
   private modelCenter: Vector3;
   // 模型参考半径（用于力场计算）
   private modelRadius = 1.0;
+  // 模型自适应缩放比例 (影响测量真实性)
+  private visualScale = 1.0;
   
   // 进度变化回调
   private onProgressChangeCallback: ProgressChangeCallback | null = null;
@@ -124,6 +126,7 @@ export class ExploderCore {
     if (maxDim > 0) {
       // 统一缩放基准：将模型缩放到约 5 个单位大小
       const scale = EXPLODER_CONSTANTS.DEFAULT_ADAPT_SIZE / maxDim;
+      this.visualScale = scale;
       this.model.scale.multiplyScalar(scale);
       
       // 重新计算中心点（缩放后）
@@ -398,6 +401,8 @@ export class ExploderCore {
     // 如果开启了自适应模型，执行缩放和居中
     if (this.options.adaptModel) {
       this.adaptModelToScene();
+    } else {
+      this.visualScale = 1.0;
     }
     
     // 3. 计算新模型的中心和半径
@@ -716,6 +721,13 @@ export class ExploderCore {
    */
   public getOptions(): Required<ExploderOptions> {
     return this.options;
+  }
+
+  /**
+   * 获取视觉缩放比例
+   */
+  public getVisualScale(): number {
+    return this.visualScale;
   }
   
   /**

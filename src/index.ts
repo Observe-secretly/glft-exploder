@@ -8,7 +8,8 @@ import { ExploderUI, ExploderOptions, ExplosionMode, ModelChangeCallback, Helper
 import { createUI } from './ui';
 import { createStyles } from './ui/styles';
 import { ExploderZoomControls } from './ui/ExploderZoomControls';
-import { calculateFaceCount, getFileName } from './core/utils';
+import { ExploderContextMenu } from './ui/ExploderContextMenu';
+import { calculateFaceCount, getFileName, getBoundingBox } from './core/utils';
 
 /**
  * GLTFExploder 类
@@ -24,6 +25,7 @@ export class GLTFExploder {
   private container: HTMLElement | null = null;
   private zoomControls: ExploderZoomControls | null = null;
   private interactionManager: InteractionManager | null = null;
+  private contextMenu: ExploderContextMenu | null = null;
   private boundOnWheel: ((event: WheelEvent) => void) | null = null;
   
   private onModelChangeCallback?: ModelChangeCallback;
@@ -71,6 +73,9 @@ export class GLTFExploder {
       console.warn('GLTFExploder: 未找到视口容器 (viewport)，将使用 body 作为默认容器');
       this.container = document.body;
     }
+
+    // 应用容器样式以禁用系统交互干扰
+    this.applyContainerStyles(this.container);
 
     // 2. 初始化 Three.js 基础场景
     this.scene = new Scene();
@@ -251,6 +256,9 @@ export class GLTFExploder {
 
     // 初始化交互管理器
     if (!this.interactionManager) {
+      if (this.container) {
+        this.applyContainerStyles(this.container);
+      }
       this.interactionManager = new InteractionManager(scene, camera, renderer);
 
       // 应用初始辅助器可见性配置
@@ -267,6 +275,47 @@ export class GLTFExploder {
           // 取消选中，恢复模型整体信息
           this.ui?.updateInfo?.(modelName, faceCount);
         }
+      });
+
+      // 设置适配视图回调
+      this.interactionManager.setOnFitToView((meshes) => {
+        this.fitToView(meshes);
+      });
+
+      // 设置右键菜单回调
+      this.interactionManager.setOnContextMenu((event, mesh) => {
+        if (!this.contextMenu) return;
+        
+        let clientX = 0;
+        let clientY = 0;
+        
+        if ('clientX' in event) {
+          clientX = (event as MouseEvent).clientX;
+          clientY = (event as MouseEvent).clientY;
+        } else if ('touches' in event && (event as TouchEvent).touches.length > 0) {
+          clientX = (event as TouchEvent).touches[0].clientX;
+          clientY = (event as TouchEvent).touches[0].clientY;
+        }
+
+        const hasHidden = this.interactionManager?.hasHiddenMeshes() || false;
+        this.contextMenu.show(clientX, clientY, {
+          showHide: !!mesh,
+          showShowAll: hasHidden
+        });
+      });
+    }
+
+    // 初始化右键菜单
+    if (this.container && !this.contextMenu) {
+      this.contextMenu = new ExploderContextMenu(this.container);
+      this.contextMenu.setOnHide(() => {
+        const selected = this.interactionManager?.getSelectedMesh();
+        if (selected) {
+          this.interactionManager?.hideMesh(selected);
+        }
+      });
+      this.contextMenu.setOnShowAll(() => {
+        this.interactionManager?.showAllMeshes();
       });
     }
 
@@ -299,11 +348,19 @@ export class GLTFExploder {
         modelName,
         faceCount
       );
+      
+      // 同步模型缩放比例到 UI
+      if (this.ui && this.ui.updateModelScale) {
+        this.ui.updateModelScale(this.core.getVisualScale());
+      }
     } else if (this.ui) {
       // 如果 UI 已存在，仅更新其显示信息
       this.ui.update(EXPLODER_CONSTANTS.PROGRESS.DEFAULT);
       if (this.ui.updateInfo) {
         this.ui.updateInfo(modelName, faceCount);
+      }
+      if (this.ui.updateModelScale) {
+        this.ui.updateModelScale(this.core.getVisualScale());
       }
     }
 
@@ -573,6 +630,62 @@ export class GLTFExploder {
   }
 
   /**
+   * 自动适配视图，使指定网格居中并填满屏幕
+   * @param overrideMeshes 可选的网格列表，如果不提供则自动计算场景中所有可见的网格
+   */
+  public fitToView(overrideMeshes?: Object3D[]): void {
+    if (!this.camera || !this.controls || !this.core) return;
+
+    let targetMeshes: Object3D[] = [];
+    if (overrideMeshes && overrideMeshes.length > 0) {
+      targetMeshes = overrideMeshes;
+    } else {
+      // 收集场景中所有可见的网格
+      this.scene?.traverse((obj) => {
+        if ((obj as any).isMesh && obj.visible) {
+          targetMeshes.push(obj);
+        }
+      });
+    }
+
+    if (targetMeshes.length === 0) return;
+
+    // 1. 计算包围盒
+    const box = getBoundingBox(targetMeshes);
+    const center = box.getCenter(new Vector3());
+    const size = box.getSize(new Vector3());
+
+    // 2. 更新控制器目标点为中心点
+    this.controls.target.copy(center);
+
+    // 3. 计算相机位置
+    // 基于包围盒大小和相机 Fov 计算距离
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fov = (this.camera as PerspectiveCamera).fov;
+    const aspect = (this.camera as PerspectiveCamera).aspect;
+    
+    // 考虑纵横比，取较小的一个
+    const fovRad = (fov * Math.PI) / 180;
+    let cameraDistance = maxDim / (2 * Math.tan(fovRad / 2));
+    
+    // 如果横向更宽，需要额外增加距离
+    const widthDist = (maxDim / aspect) / (2 * Math.tan(fovRad / 2));
+    cameraDistance = Math.max(cameraDistance, widthDist);
+
+    // 增加一点边距
+    cameraDistance *= 1.2;
+
+    // 4. 平移相机，保持当前的观察角度，只调整距离
+    const direction = new Vector3()
+      .subVectors(this.camera.position, center)
+      .normalize();
+    
+    this.camera.position.copy(center).add(direction.multiplyScalar(cameraDistance));
+    this.camera.lookAt(center);
+    this.controls.update();
+  }
+
+  /**
    * 获取交互管理器
    */
   public getInteractionManager(): InteractionManager | null {
@@ -614,6 +727,23 @@ export class GLTFExploder {
   }
   
   /**
+   * 应用容器样式，禁用系统默认右键菜单、文本选中及移动端长按效果
+   */
+  private applyContainerStyles(container: HTMLElement): void {
+    Object.assign(container.style, {
+      userSelect: 'none',
+      webkitUserSelect: 'none',
+      msUserSelect: 'none',
+      webkitTouchCallout: 'none',
+      webkitTapHighlightColor: 'transparent',
+      touchAction: 'none' // 禁用系统手势，完全控制交互
+    });
+    
+    // 额外防止右键弹出系统菜单 (针对某些环境)
+    container.oncontextmenu = (e: MouseEvent) => e.preventDefault();
+  }
+
+  /**
    * 释放资源
    */
   public dispose(): void {
@@ -630,6 +760,11 @@ export class GLTFExploder {
     if (this.interactionManager) {
       this.interactionManager.dispose();
       this.interactionManager = null;
+    }
+
+    if (this.contextMenu) {
+      this.contextMenu.dispose();
+      this.contextMenu = null;
     }
     
     this.core?.dispose();

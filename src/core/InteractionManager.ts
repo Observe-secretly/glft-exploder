@@ -21,11 +21,19 @@ export class InteractionManager {
 
   // 当前选中的网格
   private selectedMesh: Mesh | null = null;
+  private isolatedMesh: Mesh | null = null; // 当前处于隔离显隐状态的网格
   // private hoveredMesh: Mesh | null = null; // 移除悬停状态
   private enabled: boolean = true; // 是否启用交互控制
   // 原始材质属性缓存
   private originalMaterialState: Map<string, { emissive: Color, emissiveIntensity: number, color?: Color }> = new Map();
   private onSelect: ((mesh: Mesh | null) => void) | null = null;
+  private onFitToView: ((meshes: Mesh[]) => void) | null = null;
+  private onContextMenu: ((event: MouseEvent | TouchEvent, mesh: Mesh | null) => void) | null = null;
+
+  private longPressTimer: any = null;
+  private readonly longPressDuration: number = 600; // 长按触发时长 (ms)
+  private isLongPressTriggered: boolean = false;
+  private lastTouchTime: number = 0; // 记录最后一次触摸时间以屏蔽冗余鼠标事件
 
   constructor(scene: Scene, camera: Camera, renderer: WebGLRenderer) {
     this.scene = scene;
@@ -39,6 +47,9 @@ export class InteractionManager {
     this.onClick = this.onClick.bind(this);
     this.onDoubleClick = this.onDoubleClick.bind(this);
     this.onMouseMove = this.onMouseMove.bind(this);
+    this.onTouchStart = this.onTouchStart.bind(this);
+    this.onTouchMove = this.onTouchMove.bind(this);
+    this.onTouchEnd = this.onTouchEnd.bind(this);
 
     this.initEventListeners();
     this.initHelpers();
@@ -49,6 +60,20 @@ export class InteractionManager {
    */
   public setOnSelect(callback: (mesh: Mesh | null) => void): void {
     this.onSelect = callback;
+  }
+
+  /**
+   * 设置适配视图回调
+   */
+  public setOnFitToView(callback: (meshes: Mesh[]) => void): void {
+    this.onFitToView = callback;
+  }
+
+  /**
+   * 设置右键菜单回调
+   */
+  public setOnContextMenu(callback: (event: MouseEvent | TouchEvent, mesh: Mesh | null) => void): void {
+    this.onContextMenu = callback;
   }
 
   /**
@@ -110,10 +135,148 @@ export class InteractionManager {
     canvas.addEventListener('click', this.onClick);
     canvas.addEventListener('dblclick', this.onDoubleClick);
     canvas.addEventListener('mousemove', this.onMouseMove);
+    canvas.addEventListener('contextmenu', (e) => {
+      // 如果是刚触发过长按，并且是移动端，通常不需要处理系统右键事件（已有 preventDefault）
+      if (!this.enabled) return;
+      e.preventDefault();
+      // 注意：某些环境下长按后还会触发 contextmenu
+      if (this.isLongPressTriggered) return;
+      
+      if (this.onContextMenu) {
+        this.onContextMenu(e, this.selectedMesh);
+      }
+    });
+
+    // 移动端长按支持
+    canvas.addEventListener('touchstart', this.onTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', this.onTouchMove, { passive: false });
+    canvas.addEventListener('touchend', this.onTouchEnd, { passive: false });
   }
 
   private onMouseDown(event: MouseEvent): void {
+    if (Date.now() - this.lastTouchTime < 500) return; // 屏蔽触摸后的模拟点击
     this.mouseDownPos.set(event.clientX, event.clientY);
+  }
+
+  private onTouchStart(event: TouchEvent): void {
+    if (!this.enabled || event.touches.length > 1) return;
+    
+    this.lastTouchTime = Date.now();
+    
+    // 阻止默认行为以防止放大镜及背景滚动干扰逻辑
+    if (event.cancelable) {
+      event.preventDefault();
+    }
+    
+    const touch = event.touches[0];
+    this.mouseDownPos.set(touch.clientX, touch.clientY);
+    this.isLongPressTriggered = false;
+
+    // 启动长按计时器
+    this.clearLongPressTimer();
+    this.longPressTimer = setTimeout(() => {
+      this.handleLongPress(event);
+    }, this.longPressDuration);
+  }
+
+  private onTouchMove(event: TouchEvent): void {
+    if (!this.longPressTimer) return;
+    
+    const touch = event.touches[0];
+    const moveDistance = Math.sqrt(
+      Math.pow(touch.clientX - this.mouseDownPos.x, 2) +
+      Math.pow(touch.clientY - this.mouseDownPos.y, 2)
+    );
+
+    // 如果移动距离超过阈值，取消长按计时
+    if (moveDistance > this.dragThreshold * 2) {
+      this.clearLongPressTimer();
+    }
+  }
+
+  private onTouchEnd(event: TouchEvent): void {
+    this.clearLongPressTimer();
+    this.lastTouchTime = Date.now();
+    
+    // 如果长按已触发，不需要处理点击
+    if (this.isLongPressTriggered) {
+      return;
+    }
+
+    // 处理移动端点击（Tap）
+    const touch = event.changedTouches[0];
+    const moveDistance = Math.sqrt(
+      Math.pow(touch.clientX - this.mouseDownPos.x, 2) +
+      Math.pow(touch.clientY - this.mouseDownPos.y, 2)
+    );
+
+    // 如果移动距离小于阈值，视为点击
+    if (moveDistance <= this.dragThreshold * 2) {
+      this.handleSelectAt(touch.clientX, touch.clientY);
+    }
+  }
+
+  /**
+   * 在指定位置执行选中逻辑
+   */
+  private handleSelectAt(clientX: number, clientY: number): void {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+    
+    const meshIntersect = intersects.find(intersect => {
+      const obj = intersect.object as Mesh;
+      return (obj as any).isMesh && this.isGloballyVisible(obj);
+    });
+
+    if (meshIntersect) {
+      this.selectMesh(meshIntersect.object as Mesh);
+    } else {
+      this.deselectMesh();
+    }
+  }
+
+  private clearLongPressTimer(): void {
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+  }
+
+  private handleLongPress(event: TouchEvent): void {
+    if (!this.enabled) return;
+    
+    this.isLongPressTriggered = true;
+    const touch = event.touches[0];
+    
+    // 构建射线检测鼠标位置（针对 touch）
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.mouse.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+    
+    const meshIntersect = intersects.find(intersect => {
+      const obj = intersect.object as Mesh;
+      return (obj as any).isMesh && this.isGloballyVisible(obj);
+    });
+
+    // 触发右键菜单回调
+    if (this.onContextMenu) {
+      // 传递对应的 Mesh (如果是长按的地方有 Mesh，则选中它)
+      const targetMesh = meshIntersect ? (meshIntersect.object as Mesh) : null;
+      
+      // 如果长按到了新网格，先选中它
+      if (targetMesh && targetMesh !== this.selectedMesh) {
+        this.selectMesh(targetMesh);
+      }
+      
+      this.onContextMenu(event, targetMesh || this.selectedMesh);
+    }
   }
 
   /**
@@ -132,7 +295,38 @@ export class InteractionManager {
 
     if (meshIntersect) {
       const mesh = meshIntersect.object as Mesh;
-      this.toggleMeshVisibility(mesh);
+      this.isolateMesh(mesh);
+    }
+  }
+
+  /**
+   * 隔离显示某个网格
+   * @param mesh 要隔离的网格
+   */
+  public isolateMesh(mesh: Mesh): void {
+    // 如果已经在隔离当前网格，则恢复全显
+    if (this.isolatedMesh === mesh) {
+      this.showAllMeshes();
+      this.isolatedMesh = null;
+    } else {
+      // 否则进入隔离模式
+      this.scene.traverse((obj) => {
+        if ((obj as any).isMesh) {
+          obj.visible = (obj === mesh);
+        }
+      });
+      this.isolatedMesh = mesh;
+    }
+
+    // 无论进入还是退出隔离，都触发视图适配
+    if (this.onFitToView) {
+      const visibleMeshes: Mesh[] = [];
+      this.scene.traverse((obj) => {
+        if ((obj as any).isMesh && obj.visible) {
+          visibleMeshes.push(obj as Mesh);
+        }
+      });
+      this.onFitToView(visibleMeshes);
     }
   }
 
@@ -152,11 +346,59 @@ export class InteractionManager {
    * 显示所有被隐藏的网格
    */
   public showAllMeshes(): void {
+    const visibleMeshes: Mesh[] = [];
     this.scene.traverse((obj) => {
       if ((obj as any).isMesh) {
         obj.visible = true;
+        visibleMeshes.push(obj as Mesh);
       }
     });
+    this.isolatedMesh = null;
+
+    if (this.onFitToView) {
+      this.onFitToView(visibleMeshes);
+    }
+  }
+
+  /**
+   * 隐藏指定网格
+   */
+  public hideMesh(mesh: Mesh): void {
+    mesh.visible = false;
+    if (this.selectedMesh === mesh) {
+      this.deselectMesh();
+    }
+    
+    // 如果是隔离状态下的唯一网格被隐藏，则清除隔离状态
+    if (this.isolatedMesh === mesh) {
+      this.isolatedMesh = null;
+    }
+  }
+
+  /**
+   * 检查是否有隐藏的网格
+   */
+  public hasHiddenMeshes(): boolean {
+    let hasHidden = false;
+    this.scene.traverse((obj) => {
+      if ((obj as any).isMesh && !obj.visible) {
+        hasHidden = true;
+      }
+    });
+    return hasHidden;
+  }
+
+  /**
+   * 检查对象是否全局可见（自身及所有父级都可见）
+   */
+  private isGloballyVisible(obj: any): boolean {
+    let current = obj;
+    while (current) {
+      if (!current.visible) return false;
+      if (current === this.scene) break; // 核心修复：止于场景根节点
+      current = current.parent;
+    }
+    return true;
   }
 
   /**
@@ -240,6 +482,7 @@ export class InteractionManager {
    */
   private onClick(event: MouseEvent): void {
     if (!this.enabled) return;
+    if (Date.now() - this.lastTouchTime < 500) return; // 屏蔽触摸后的模拟点击
 
     // 检测是否是拖拽：计算按下和松开时的位移
     const moveDistance = Math.sqrt(
@@ -252,23 +495,7 @@ export class InteractionManager {
       return;
     }
 
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-    this.raycaster.setFromCamera(this.mouse, this.camera);
-
-    // 寻找相交的对象，只检测 Mesh
-    const intersects = this.raycaster.intersectObjects(this.scene.children, true);
-    
-    const meshIntersect = intersects.find(intersect => (intersect.object as any).isMesh);
-
-    if (meshIntersect) {
-      const mesh = meshIntersect.object as Mesh;
-      this.selectMesh(mesh);
-    } else {
-      this.deselectMesh();
-    }
+    this.handleSelectAt(event.clientX, event.clientY);
   }
 
   /**
@@ -292,6 +519,13 @@ export class InteractionManager {
     if (this.onSelect) {
       this.onSelect(mesh);
     }
+  }
+
+  /**
+   * 获取当前选中的网格
+   */
+  public getSelectedMesh(): Mesh | null {
+    return this.selectedMesh;
   }
 
   /**
@@ -390,8 +624,11 @@ export class InteractionManager {
     canvas.removeEventListener('click', this.onClick);
     canvas.removeEventListener('dblclick', this.onDoubleClick);
     canvas.removeEventListener('mousemove', this.onMouseMove);
+    canvas.removeEventListener('touchstart', this.onTouchStart);
+    canvas.removeEventListener('touchmove', this.onTouchMove);
+    canvas.removeEventListener('touchend', this.onTouchEnd);
     
-    this.deselectMesh();
+    this.clearLongPressTimer();
     this.originalMaterialState.clear();
     
     // 释放辅助器资源

@@ -210,6 +210,10 @@ class CompositeUI implements ExploderUI {
     this.panel?.updateHelperVisibility(visible);
   }
 
+  updateModelScale(scale: number) {
+    this.measurement?.setModelScale(scale);
+  }
+
   updateModel(modelPath: string) {
     // Note: This only updates the selection, the actual info update happens via updateInfo
     if (this.panel && (this.panel as any).updateModel) {

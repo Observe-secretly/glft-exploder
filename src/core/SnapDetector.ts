@@ -1,4 +1,4 @@
-import { Vector2, Vector3, Camera, Raycaster, BufferGeometry, Line3 } from 'three';
+import { Vector2, Vector3, Camera, Raycaster, BufferGeometry, Line3, Mesh } from 'three';
 import { Octree, OctreeData } from './Octree';
 import { SnapMode, SnapResult } from './MeasurementTypes';
 
@@ -10,6 +10,8 @@ export interface Edge {
   start: Vector3;
   /** 终点 */
   end: Vector3;
+  /** 边所属的网格 */
+  mesh?: Mesh;
   /** 边索引或其他标识 */
   index?: number;
 }
@@ -59,6 +61,10 @@ export class SnapDetector {
     let minScreenDist = radiusScreen;
 
     for (const vertex of nearbyVertices) {
+      // 核心修复：检查顶点所属的网格是否可见
+      const mesh = vertex.data?.mesh as Mesh;
+      if (mesh && !mesh.visible) continue;
+
       const screenDist = this.getScreenDistance(vertex.position, mousePos);
       if (screenDist < minScreenDist) {
         minScreenDist = screenDist;
@@ -98,6 +104,9 @@ export class SnapDetector {
     let closestEdge: Edge | null = null;
 
     for (const edge of edges) {
+      // 核心修复：检查边缘所属的网格是否可见
+      if (edge.mesh && !edge.mesh.visible) continue;
+
       // 创建线段
       const line = new Line3(edge.start, edge.end);
       

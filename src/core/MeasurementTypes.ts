@@ -13,7 +13,17 @@ export enum SnapMode {
 /**
  * 单位类型
  */
-export type MeasurementUnit = 'm' | 'cm' | 'mm';
+export type MeasurementUnit = 'm' | 'mm';
+
+/**
+ * 测量维度类型
+ */
+export enum MeasurementType {
+  LINEAR = 'linear',     // 直线距离
+  DIAMETER = 'diameter', // 直径
+  RADIUS = 'radius',     // 半径
+  ANGLE = 'angle'        // 角度
+}
 
 /**
  * 测量配置接口
@@ -35,6 +45,8 @@ export interface MeasurementConfig {
   lineColor: string;
   /** 标签背景色 */
   labelBgColor: string;
+  /** 模型缩放比例 (真实尺寸 = 视口尺寸 / modelScale) */
+  modelScale: number;
 }
 
 /**
@@ -65,6 +77,10 @@ export interface MeasurementResult {
   formattedDistance: string;
   /** 使用的单位 */
   unit: MeasurementUnit;
+  /** 是否是近似值 */
+  isApproximate?: boolean;
+  /** 测量类型 */
+  type?: MeasurementType;
 }
 
 /**
@@ -85,5 +101,6 @@ export const DEFAULT_MEASUREMENT_CONFIG: MeasurementConfig = {
   pinColor: '#2563EB',
   lineWidth: 2,
   lineColor: 'rgba(37, 99, 235, 0.4)',
-  labelBgColor: 'rgba(255, 255, 255, 0.7)'
+  labelBgColor: 'rgba(255, 255, 255, 0.7)',
+  modelScale: 1.0
 };

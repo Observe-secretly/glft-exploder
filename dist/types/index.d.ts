@@ -16,14 +16,29 @@ declare class InteractionManager {
     private axesHelper;
     private axisLabels;
     private selectedMesh;
+    private isolatedMesh;
     private enabled;
     private originalMaterialState;
     private onSelect;
+    private onFitToView;
+    private onContextMenu;
+    private longPressTimer;
+    private readonly longPressDuration;
+    private isLongPressTriggered;
+    private lastTouchTime;
     constructor(scene: Scene, camera: Camera, renderer: WebGLRenderer);
     /**
      * 设置选中回调
      */
     setOnSelect(callback: (mesh: Mesh | null) => void): void;
+    /**
+     * 设置适配视图回调
+     */
+    setOnFitToView(callback: (meshes: Mesh[]) => void): void;
+    /**
+     * 设置右键菜单回调
+     */
+    setOnContextMenu(callback: (event: MouseEvent | TouchEvent, mesh: Mesh | null) => void): void;
     /**
      * 设置交互是否启用
      * 当进行其他高优先级操作（如测量）时，可以禁用网格选中
@@ -42,10 +57,24 @@ declare class InteractionManager {
      */
     private initEventListeners;
     private onMouseDown;
+    private onTouchStart;
+    private onTouchMove;
+    private onTouchEnd;
+    /**
+     * 在指定位置执行选中逻辑
+     */
+    private handleSelectAt;
+    private clearLongPressTimer;
+    private handleLongPress;
     /**
      * 处理双击事件
      */
     private onDoubleClick;
+    /**
+     * 隔离显示某个网格
+     * @param mesh 要隔离的网格
+     */
+    isolateMesh(mesh: Mesh): void;
     /**
      * 切换网格可见性
      */
@@ -54,6 +83,18 @@ declare class InteractionManager {
      * 显示所有被隐藏的网格
      */
     showAllMeshes(): void;
+    /**
+     * 隐藏指定网格
+     */
+    hideMesh(mesh: Mesh): void;
+    /**
+     * 检查是否有隐藏的网格
+     */
+    hasHiddenMeshes(): boolean;
+    /**
+     * 检查对象是否全局可见（自身及所有父级都可见）
+     */
+    private isGloballyVisible;
     /**
      * 处理鼠标移动事件（移除悬停效果）
      */
@@ -67,6 +108,10 @@ declare class InteractionManager {
      * @param mesh 要选中的网格
      */
     selectMesh(mesh: Mesh): void;
+    /**
+     * 获取当前选中的网格
+     */
+    getSelectedMesh(): Mesh | null;
     /**
      * 取消选中
      */
@@ -187,6 +232,7 @@ declare class GLTFExploder {
     private container;
     private zoomControls;
     private interactionManager;
+    private contextMenu;
     private boundOnWheel;
     private onModelChangeCallback?;
     private onHelperVisibilityChangeCallback?;
@@ -281,6 +327,11 @@ declare class GLTFExploder {
      */
     reset(): void;
     /**
+     * 自动适配视图，使指定网格居中并填满屏幕
+     * @param overrideMeshes 可选的网格列表，如果不提供则自动计算场景中所有可见的网格
+     */
+    fitToView(overrideMeshes?: Object3D[]): void;
+    /**
      * 获取交互管理器
      */
     getInteractionManager(): InteractionManager | null;
@@ -302,6 +353,10 @@ declare class GLTFExploder {
      * 隐藏 UI
      */
     hideUI(): void;
+    /**
+     * 应用容器样式，禁用系统默认右键菜单、文本选中及移动端长按效果
+     */
+    private applyContainerStyles;
     /**
      * 释放资源
      */

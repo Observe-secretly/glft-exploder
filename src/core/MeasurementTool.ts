@@ -1,6 +1,8 @@
 import { Vector3, Vector2, Camera, Scene, Raycaster, Object3D, BufferGeometry, Mesh, Box3 } from 'three';
 import { Octree } from './Octree';
 import { SnapDetector, Edge } from './SnapDetector';
+import { MeasurementFormatter } from './MeasurementFormatter';
+export * from './MeasurementTypes';
 import { 
   SnapMode, 
   MeasurementUnit, 
@@ -10,20 +12,9 @@ import {
   MeasureStartCallback, 
   MeasureCompleteCallback, 
   SnapDetectedCallback, 
-  DEFAULT_MEASUREMENT_CONFIG 
+  DEFAULT_MEASUREMENT_CONFIG,
+  MeasurementType
 } from './MeasurementTypes';
-
-export { 
-  SnapMode, 
-  MeasurementUnit, 
-  MeasurementConfig, 
-  SnapResult, 
-  MeasurementResult, 
-  MeasureStartCallback, 
-  MeasureCompleteCallback, 
-  SnapDetectedCallback, 
-  DEFAULT_MEASUREMENT_CONFIG 
-};
 
 /**
  * 测量工具类
@@ -112,7 +103,7 @@ export class MeasurementTool {
    * 获取当前配置
    */
   public getConfig(): MeasurementConfig {
-    return { ...this.config };
+    return this.config;
   }
 
   /**
@@ -122,7 +113,7 @@ export class MeasurementTool {
   public updateConfig(config: Partial<MeasurementConfig>): void {
     this.config = { ...this.config, ...config };
   }
-
+  
   /**
    * 计算两点之间的距离
    * @param point1 第一个点
@@ -140,24 +131,14 @@ export class MeasurementTool {
    * @returns 格式化的距离字符串
    */
   public formatDistance(distance: number, unit?: MeasurementUnit): string {
-    const targetUnit = unit || this.config.unit;
-    let value: number;
+    // 归一化距离：物理距离 = 世界距离 / 视觉缩放比例
+    const physicalDistance = distance / this.config.modelScale;
     
-    switch (targetUnit) {
-      case 'm':
-        value = distance;
-        break;
-      case 'cm':
-        value = distance * 100;
-        break;
-      case 'mm':
-        value = distance * 1000;
-        break;
-      default:
-        value = distance;
-    }
-    
-    return `${value.toFixed(2)} ${targetUnit}`;
+    const result = MeasurementFormatter.formatLength(
+      physicalDistance, 
+      unit || this.config.unit
+    );
+    return `${result.prefix}${result.value} ${result.unit}`;
   }
 
   /**
@@ -177,12 +158,23 @@ export class MeasurementTool {
     
     if (this.point1 && this.point2) {
       const distance = this.getDistance(this.point1, this.point2);
+      // 归一化距离
+      const physicalDistance = distance / this.config.modelScale;
+      
+      // 使用格式化器获取带单位的结果
+      const format = MeasurementFormatter.formatLength(
+        physicalDistance,
+        this.config.unit
+      );
+
       const result: MeasurementResult = {
         point1: this.point1,
         point2: this.point2,
-        distance,
-        formattedDistance: this.formatDistance(distance),
-        unit: this.config.unit
+        distance: physicalDistance,
+        formattedDistance: `${format.prefix}${format.value} ${format.unit}`,
+        unit: format.unit,
+        isApproximate: false, // 基础测量确认为精确值
+        type: MeasurementType.LINEAR
       };
       
       if (this.onMeasureCompleteCallback) {
@@ -354,7 +346,7 @@ export class MeasurementTool {
     this.holeEdges = [];
     
     // 收集所有世界空间下的顶点用于构建八叉树
-    const allWorldVertices: Vector3[] = [];
+    const allWorldVertices: { pos: Vector3, mesh: Mesh, index: number }[] = [];
     
     // 确保模型的世界矩阵是最新的
     model.updateMatrixWorld(true);
@@ -369,32 +361,41 @@ export class MeasurementTool {
           const positions = geometry.attributes.position;
           
           if (positions) {
-            // 1. 处理顶点，转换到世界空间
+            // 1. 收集顶点并记录所属网格
             for (let i = 0; i < positions.count; i++) {
               const vertex = new Vector3(
                 positions.getX(i),
                 positions.getY(i),
                 positions.getZ(i)
               );
-              // 应用网格的世界变换矩阵
               vertex.applyMatrix4(mesh.matrixWorld);
-              allWorldVertices.push(vertex);
+              allWorldVertices.push({ pos: vertex, mesh, index: i });
             }
             
-            // 2. 提取边并转换到世界空间
+            // 2. 提取边
             const localEdges = this.snapDetector.extractEdges(geometry);
             for (const edge of localEdges) {
               const startWorld = edge.start.clone().applyMatrix4(mesh.matrixWorld);
               const endWorld = edge.end.clone().applyMatrix4(mesh.matrixWorld);
-              this.edges.push({ start: startWorld, end: endWorld, index: this.edges.length });
+              this.edges.push({ 
+                start: startWorld, 
+                end: endWorld, 
+                mesh: mesh,
+                index: this.edges.length 
+              });
             }
             
-            // 3. 提取孔边缘并转换到世界空间
+            // 3. 提取孔边缘
             const localHoleEdges = this.snapDetector.detectHoles(geometry);
             for (const edge of localHoleEdges) {
               const startWorld = edge.start.clone().applyMatrix4(mesh.matrixWorld);
               const endWorld = edge.end.clone().applyMatrix4(mesh.matrixWorld);
-              this.holeEdges.push({ start: startWorld, end: endWorld, index: this.holeEdges.length });
+              this.holeEdges.push({ 
+                start: startWorld, 
+                end: endWorld, 
+                mesh: mesh,
+                index: this.holeEdges.length 
+              });
             }
           }
         }
@@ -406,12 +407,13 @@ export class MeasurementTool {
       return;
     }
     
-    // 构建全局八叉树
+    // 4. 构建八叉树
     this.octree = new Octree(
-      this.calculateBoundingBox(allWorldVertices)
+      this.calculateBoundingBox(allWorldVertices.map(v => v.pos))
     );
-    for (const v of allWorldVertices) {
-      this.octree.insert(v, null);
+    
+    for (const vInfo of allWorldVertices) {
+      this.octree.insert(vInfo.pos, { mesh: vInfo.mesh, index: vInfo.index });
     }
     
     console.log(`[MeasurementTool] Built snap structures:`);

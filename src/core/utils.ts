@@ -1,4 +1,4 @@
-import { Object3D, Vector3, Sprite, SpriteMaterial, CanvasTexture } from 'three';
+import { Object3D, Vector3, Sprite, SpriteMaterial, CanvasTexture, Box3 } from 'three';
 import { EXPLODER_CONSTANTS } from './types';
 
 /**
@@ -141,6 +141,19 @@ export function calculateFaceCount(model: Object3D): number {
     }
   });
   return Math.floor(count);
+}
+
+/**
+ * 计算一组网格的包围盒
+ * @param meshes 网格列表
+ * @returns Box3 对象
+ */
+export function getBoundingBox(meshes: Object3D[]): Box3 {
+  const box = new Box3();
+  meshes.forEach(mesh => {
+    box.expandByObject(mesh);
+  });
+  return box;
 }
 
 /**

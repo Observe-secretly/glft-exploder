@@ -1,5 +1,6 @@
 import { MeasurementTool } from '../core/MeasurementTool';
-import { MeasurementResult, SnapResult } from '../core/MeasurementTypes';
+import { MeasurementResult, SnapResult, MeasurementUnit, MeasurementType, SnapMode } from '../core/MeasurementTypes';
+import { MeasurementFormatter } from '../core/MeasurementFormatter';
 import { Vector2, Vector3, Camera, Scene, Object3D } from 'three';
 
 /**
@@ -12,7 +13,9 @@ interface MeasurementData {
   label: HTMLElement;
   point1: Vector3;
   point2: Vector3;
-  distance: number;
+  worldDistance: number;
+  unit: MeasurementUnit; // 记录测量的显示单位
+  type: MeasurementType;
 }
 
 /**
@@ -58,6 +61,13 @@ export class ExploderMeasurement {
   // 激活状态回调
   private onActiveChange?: (active: boolean) => void;
 
+  // 节流处理 (10Hz)
+  private lastMouseMoveUpdateTime: number = 0;
+  private lastStaticUpdateTime: number = 0;
+  private readonly THROTTLE_MS: number = 100; // 100ms = 10Hz
+  private previewLabel: HTMLElement | null = null;
+  private currentPreviewUnit: MeasurementUnit = 'mm';
+
   constructor(
     container: HTMLElement | string,
     camera: Camera,
@@ -101,6 +111,10 @@ export class ExploderMeasurement {
     this.container = (target || document.body) as HTMLElement;
     this.container.appendChild(this.element);
     
+    // 创建预览标签
+    this.previewLabel = this.createPreviewLabel();
+    this.element.appendChild(this.previewLabel);
+    
     // 绑定事件处理器
     this.boundMouseMove = this.handleMouseMove.bind(this);
     this.boundMouseDown = this.handleMouseDown.bind(this);
@@ -138,25 +152,61 @@ export class ExploderMeasurement {
     const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     const mousePos = new Vector2(x, y);
+
+    // 核心修复：如果鼠标移到了 UI 元素上（非 canvas），隐藏预览
+    const target = event.target as HTMLElement;
+    if (target.tagName !== 'CANVAS' && !target.classList.contains('exploder-measurement-root')) {
+      this.previewDot.style.display = 'none';
+      this.previewLine.style.display = 'none';
+      this.previewLabel!.style.display = 'none';
+      this.currentSnap = null;
+      return;
+    }
     
     // 检测吸附
     const snap = this.measurementTool.detectSnap(mousePos);
     
     if (snap) {
-      // 有吸附点,显示预览小蓝点
       this.currentSnap = snap;
       this.updatePreviewDotPosition(snap.position);
       this.previewDot.style.display = 'block';
       
-      // 如果有第一个点,更新预览线
+      const now = Date.now();
+      const shouldUpdateValue = now - this.lastMouseMoveUpdateTime > this.THROTTLE_MS;
+
       if (this.clickCount === 1 && this.currentPoint1) {
         this.updateLineElement(this.previewLine, this.currentPoint1, snap.position);
         this.previewLine.style.display = 'block';
+
+        if (shouldUpdateValue) {
+          const distance = this.currentPoint1.distanceTo(snap.position);
+          const modelScale = this.measurementTool.getConfig().modelScale;
+          const physicalDistance = distance / modelScale;
+          
+          console.log(`[ExploderMeasurement] Move - WorldDist: ${distance.toFixed(4)}, Scale: ${modelScale.toFixed(4)}, Physical: ${physicalDistance.toFixed(4)}`);
+          
+          const isApproximate = snap.type === SnapMode.FACE || snap.type === SnapMode.HOLE_EDGE;
+          const format = MeasurementFormatter.formatLength(
+            physicalDistance,
+            this.currentPreviewUnit,
+            MeasurementType.LINEAR,
+            isApproximate
+          );
+          this.currentPreviewUnit = format.unit;
+          this.updateLabelContent(this.previewLabel!, format.value, format.unit, format.prefix);
+          this.lastMouseMoveUpdateTime = now;
+        }
+        
+        this.updateLabelPosition(this.previewLabel!, this.currentPoint1, snap.position);
+        this.previewLabel!.style.display = 'flex';
+      } else {
+        this.previewLabel!.style.display = 'none';
       }
     } else {
       // 没有吸附点,隐藏预览
       this.previewDot.style.display = 'none';
       this.currentSnap = null;
+      this.previewLabel!.style.display = 'none';
       
       if (this.clickCount === 1) {
         this.previewLine.style.display = 'none';
@@ -173,6 +223,12 @@ export class ExploderMeasurement {
    */
   private handleMouseClick(event: MouseEvent): void {
     if (!this.isActive) return;
+
+    // 核心修复：防止点击 UI 元素触发测量
+    const target = event.target as HTMLElement;
+    if (target.tagName !== 'CANVAS') {
+      return;
+    }
 
     // 检测拖动位移
     const moveDistance = Math.sqrt(
@@ -200,10 +256,27 @@ export class ExploderMeasurement {
       this.element.appendChild(this.currentPinA);
       this.previewDot.style.display = 'none';
       this.clickCount = 1;
+
+      // 重置预览单位为默认或当前测量工具配置的单位
+      this.currentPreviewUnit = this.measurementTool.getConfig().unit as MeasurementUnit;
     } else if (this.clickCount === 1 && this.currentPoint1 && this.currentPinA) {
       // 第二次点击 - 完成测量
       const point2 = snap.position.clone();
       const distance = this.currentPoint1.distanceTo(point2);
+      const modelScale = this.measurementTool.getConfig().modelScale;
+      const physicalDistance = distance / modelScale;
+      
+      // 判断是否是近似值 (比如面吸附)
+      const isApproximate = snap.type === SnapMode.FACE || snap.type === SnapMode.HOLE_EDGE;
+      const type = MeasurementType.LINEAR;
+
+      // 使用格式化器获取最终精确值
+      const format = MeasurementFormatter.formatLength(
+        physicalDistance,
+        this.currentPreviewUnit,
+        type,
+        isApproximate
+      );
       
       // 创建第二个大头针
       const pinB = this.createPin();
@@ -223,7 +296,7 @@ export class ExploderMeasurement {
       this.element.appendChild(line);
       
       // 创建标签
-      const label = this.createCompactLabel(distance, this.measurements.length);
+      const label = this.createCompactLabel(format.value, format.unit, format.prefix, this.measurements.length);
       this.updateLabelPosition(label, this.currentPoint1, point2);
       this.element.appendChild(label);
       
@@ -235,18 +308,21 @@ export class ExploderMeasurement {
         label: label,
         point1: this.currentPoint1,
         point2: point2,
-        distance: distance
+        worldDistance: distance,
+        unit: format.unit,
+        type: type
       };
       this.measurements.push(measurement);
       
       // 重置状态,准备下一次测量
       this.previewDot.style.display = 'none';
       this.previewLine.style.display = 'none';
+      this.previewLabel!.style.display = 'none';
       this.currentPinA = null;
       this.currentPoint1 = null;
       this.clickCount = 0;
       
-      console.log(`[ExploderMeasurement] Measurement #${this.measurements.length} complete: ${distance.toFixed(2)} mm`);
+      console.log(`[ExploderMeasurement] Measurement #${this.measurements.length} complete: ${format.value} ${format.unit}`);
     }
   }
 
@@ -281,6 +357,17 @@ export class ExploderMeasurement {
   }
 
   /**
+   * 设置模型缩放比例
+   */
+  public setModelScale(scale: number): void {
+    console.log(`[ExploderMeasurement] Received model scale: ${scale}`);
+    this.measurementTool.updateConfig({ modelScale: scale });
+    
+    // 如果有已完成的测量，可能需要重新计算 (可选，这里先简单更新已有测量的单位显示)
+    this.update();
+  }
+
+  /**
    * 创建大头针
    */
   private createPin(): HTMLElement {
@@ -309,9 +396,42 @@ export class ExploderMeasurement {
   }
 
   /**
+   * 创建预览标签 (移动过程中显示)
+   */
+  private createPreviewLabel(): HTMLElement {
+    const label = document.createElement('div');
+    label.className = 'exploder-measure-preview-label';
+    this.applyStyle(label, `
+      position: absolute;
+      z-index: 90;
+      pointer-events: none;
+      background: rgba(37, 99, 235, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 3px 8px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: white;
+      display: none;
+    `);
+
+    label.innerHTML = `
+      <span class="exploder-measure-prefix" style="font-weight: 700;"></span>
+      <span class="exploder-measure-value" style="font-weight: 700; font-family: 'Courier New', monospace;">0.00</span>
+      <span class="exploder-measure-unit" style="font-size: 9px; opacity: 0.9;">mm</span>
+    `;
+
+    return label;
+  }
+
+  /**
    * 创建紧凑型距离标签
    */
-  private createCompactLabel(distance: number, index: number): HTMLElement {
+  private createCompactLabel(valueStr: string, unit: string, prefix: string, index: number): HTMLElement {
     const label = document.createElement('div');
     label.className = 'exploder-measure-label';
     this.applyStyle(label, `
@@ -332,19 +452,32 @@ export class ExploderMeasurement {
       transition: all 0.2s;
     `);
 
+    // 含有前缀的容器
+    const valueWrapper = document.createElement('div');
+    this.applyStyle(valueWrapper, `display: flex; align-items: center; gap: 2px;`);
+
+    const prefixEl = document.createElement('span');
+    prefixEl.className = 'exploder-measure-prefix';
+    prefixEl.textContent = prefix;
+    this.applyStyle(prefixEl, `font-weight: 700; color: #2563EB; display: ${prefix ? 'inline' : 'none'};`);
+    valueWrapper.appendChild(prefixEl);
+
     // 距离值
     const value = document.createElement('span');
-    value.textContent = `${(distance * 1000).toFixed(2)}`;
+    value.className = 'exploder-measure-value';
+    value.textContent = valueStr;
     this.applyStyle(value, `
       font-weight: 700;
       color: #1F2937;
       font-family: 'Courier New', monospace;
     `);
+    valueWrapper.appendChild(value);
 
     // 单位
-    const unit = document.createElement('span');
-    unit.textContent = 'mm';
-    this.applyStyle(unit, `
+    const unitEl = document.createElement('span');
+    unitEl.className = 'exploder-measure-unit';
+    unitEl.textContent = unit;
+    this.applyStyle(unitEl, `
       font-weight: 600;
       color: #2563EB;
       font-size: 10px;
@@ -385,6 +518,23 @@ export class ExploderMeasurement {
       label.style.paddingRight = '10px';
     });
 
+    // 点击 label 也要停止冒泡，并针对移动端显示/隐藏删除按钮
+    label.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // 在移动端或某些环境下，点击可以切换显示删除按钮
+      const isVisible = deleteBtn.style.display === 'flex';
+      if (isVisible) {
+        deleteBtn.style.display = 'none';
+        label.style.paddingRight = '10px';
+      } else {
+        deleteBtn.style.display = 'flex';
+        label.style.paddingRight = '6px';
+      }
+    });
+
+    // 阻止 mousedown 冒泡，防止触发 3D 旋转等
+    label.addEventListener('mousedown', (e) => e.stopPropagation());
+
     // 删除按钮悬停效果
     deleteBtn.addEventListener('mouseenter', () => {
       deleteBtn.style.color = '#EF4444';
@@ -401,11 +551,27 @@ export class ExploderMeasurement {
       this.deleteMeasurement(index);
     });
 
-    label.appendChild(value);
-    label.appendChild(unit);
+    label.appendChild(valueWrapper);
+    label.appendChild(unitEl);
     label.appendChild(deleteBtn);
 
     return label;
+  }
+
+  /**
+   * 更新标签内容
+   */
+  private updateLabelContent(label: HTMLElement, value: string, unit: string, prefix: string): void {
+    const valueEl = label.querySelector('.exploder-measure-value');
+    const unitEl = label.querySelector('.exploder-measure-unit');
+    const prefixEl = label.querySelector('.exploder-measure-prefix');
+    
+    if (valueEl) valueEl.textContent = value;
+    if (unitEl) unitEl.textContent = unit;
+    if (prefixEl) {
+      prefixEl.textContent = prefix;
+      (prefixEl as HTMLElement).style.display = prefix ? 'inline' : 'none';
+    }
   }
 
   /**
@@ -503,11 +669,33 @@ export class ExploderMeasurement {
     }
 
     // 2. 更新已完成的测量
+    const now = Date.now();
+    const shouldUpdateStatic = now - this.lastStaticUpdateTime > this.THROTTLE_MS;
+
     for (const measurement of this.measurements) {
+      if (shouldUpdateStatic) {
+        // 同步测量结果 (处理单位变化)
+        const modelScale = this.measurementTool.getConfig().modelScale;
+        const physicalDistance = measurement.worldDistance / modelScale;
+        
+        const format = MeasurementFormatter.formatLength(
+          physicalDistance,
+          measurement.unit,
+          measurement.type,
+          false // 已完成测量视为精确
+        );
+        measurement.unit = format.unit;
+        this.updateLabelContent(measurement.label, format.value, format.unit, format.prefix);
+      }
+
       this.updatePinPosition3D(measurement.pinA, measurement.point1);
       this.updatePinPosition3D(measurement.pinB, measurement.point2);
       this.updateLineElement(measurement.line, measurement.point1, measurement.point2);
       this.updateLabelPosition(measurement.label, measurement.point1, measurement.point2);
+    }
+    
+    if (shouldUpdateStatic) {
+      this.lastStaticUpdateTime = now;
     }
   }
 
