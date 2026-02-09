@@ -129,7 +129,14 @@ export const EXPLODER_CONSTANTS = {
       DIRECTIONAL: 0.8
     }
   },
-  // 方向计算相关常量
+  // 交互配置 (Interaction)
+  INTERACTION: {
+    HIGHLIGHT_COLOR: 0x64B5F6, // 暖色调蓝色，更柔和不刺眼
+    HOVER_OPACITY: 0.8,
+    SELECT_OPACITY: 1.0,
+    EMISSIVE_INTENSITY: 0.5
+  },
+  // 方向计算常量 (Direction)
   DIRECTION: {
     // 最小方向向量长度阈值
     MIN_LENGTH: 0.001,

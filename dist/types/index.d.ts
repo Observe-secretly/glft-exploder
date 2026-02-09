@@ -1,4 +1,88 @@
-import { Object3D, Vector3, Scene, Camera, WebGLRenderer } from 'three';
+import { Scene, Camera, WebGLRenderer, Mesh, Object3D, Vector3 } from 'three';
+
+/**
+ * 交互管理器
+ * 负责处理 3D 场景中的交互逻辑，如网格选中、高亮、显示/隐藏控制等
+ */
+declare class InteractionManager {
+    private scene;
+    private camera;
+    private renderer;
+    private raycaster;
+    private mouse;
+    private mouseDownPos;
+    private readonly dragThreshold;
+    private gridHelper;
+    private axesHelper;
+    private axisLabels;
+    private selectedMesh;
+    private hoveredMesh;
+    private originalMaterialState;
+    private onSelect;
+    constructor(scene: Scene, camera: Camera, renderer: WebGLRenderer);
+    /**
+     * 设置选中回调
+     */
+    setOnSelect(callback: (mesh: Mesh | null) => void): void;
+    /**
+     * 初始化辅助器 (网格、轴等)
+     */
+    private initHelpers;
+    /**
+     * 设置辅助器可见性
+     */
+    setHelperVisibility(visible: boolean): void;
+    /**
+     * 初始化事件监听
+     */
+    private initEventListeners;
+    private onMouseDown;
+    /**
+     * 处理双击事件
+     */
+    private onDoubleClick;
+    /**
+     * 切换网格可见性
+     */
+    toggleMeshVisibility(mesh: Mesh): void;
+    /**
+     * 显示所有被隐藏的网格
+     */
+    showAllMeshes(): void;
+    /**
+     * 处理鼠标移动事件（悬停效果）
+     */
+    private onMouseMove;
+    private hoverMesh;
+    private unhoverMesh;
+    /**
+     * 处理点击事件
+     */
+    private onClick;
+    /**
+     * 选中网格并高亮
+     * @param mesh 要选中的网格
+     */
+    selectMesh(mesh: Mesh): void;
+    /**
+     * 取消选中
+     */
+    deselectMesh(): void;
+    /**
+     * 高亮网格
+     * @param mesh 网格对象
+     */
+    private highlightMesh;
+    /**
+     * 恢复网格原始材质
+     * @param mesh 网格对象
+     */
+    private restoreMesh;
+    /**
+     * 销毁管理器
+     */
+    dispose(): void;
+}
 
 /**
  * 爆炸模式
@@ -98,10 +182,8 @@ declare class GLTFExploder {
     private camera;
     private controls;
     private container;
-    private gridHelper;
-    private axesHelper;
-    private axisLabels;
     private zoomControls;
+    private interactionManager;
     private boundOnWheel;
     private onModelChangeCallback?;
     private onHelperVisibilityChangeCallback?;
@@ -195,6 +277,10 @@ declare class GLTFExploder {
      * 重置爆炸视图
      */
     reset(): void;
+    /**
+     * 获取交互管理器
+     */
+    getInteractionManager(): InteractionManager | null;
     /**
      * 设置进度变化回调
      * @param callback 回调函数
