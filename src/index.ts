@@ -262,7 +262,7 @@ export class GLTFExploder {
       this.interactionManager = new InteractionManager(scene, camera, renderer);
 
       // 应用初始辅助器可见性配置
-      const initialHelperVisibility = options.showHelpers ?? true;
+      const initialHelperVisibility = options.showHelpers ?? false;
       this.handleHelperVisibilityChange(initialHelperVisibility);
 
       // 设置选中回调，更新 UI 信息
@@ -344,7 +344,7 @@ export class GLTFExploder {
         renderer.toneMappingExposure,
         this.core.getMode(),
         this.core.getAxialVector(),
-        options.showHelpers ?? true,
+        options.showHelpers ?? false,
         modelName,
         faceCount
       );
@@ -616,7 +616,7 @@ export class GLTFExploder {
       this.ui.updateExposure?.(EXPLODER_CONSTANTS.EXPOSURE.DEFAULT);
       this.ui.updateMode?.(ExplosionMode.RADIAL);
       this.ui.updateAxialVector?.(new Vector3(0, 1, 0));
-      const initialHelperVisibility = this.options.showHelpers ?? true;
+      const initialHelperVisibility = this.options.showHelpers ?? false;
       this.ui.updateHelperVisibility?.(initialHelperVisibility);
       // 同时重置内部辅助器状态
       this.handleHelperVisibilityChange(initialHelperVisibility);

@@ -19,7 +19,7 @@ const exploder = new GLTFExploder({
   showPanel: true,              // 显示控制面板
   showProgress: true,           // 显示进度条
   showHelpers: false,            // 显示辅助线
-  wheelControlExplosion: true,   // 开启滚轮控制爆炸
+  wheelControlExplosion: false,   // 开启滚轮控制爆炸
   adaptModel: true                  // 开启模型自动缩放居中，确保视觉效果最佳
 });
 
