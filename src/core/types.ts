@@ -228,6 +228,8 @@ export interface ExploderUI {
   reset?(): void;
   /** 每帧渲染更新 (用于同步相机透视等) */
   render?(): void;
+  /** 模型切换后重建测量吸附结构 */
+  rebuildSnapStructures?(model: Object3D): void;
   /** 释放资源 */
   dispose(): void;
 }

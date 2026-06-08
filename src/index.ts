@@ -27,6 +27,11 @@ export class GLTFExploder {
   private interactionManager: InteractionManager | null = null;
   private contextMenu: ExploderContextMenu | null = null;
   private boundOnWheel: ((event: WheelEvent) => void) | null = null;
+  private isAutoMode = false;
+  private disposed = false;
+  private animationFrameId: number | null = null;
+  private boundAnimate: () => void;
+  private boundOnResize: () => void;
   
   private onModelChangeCallback?: ModelChangeCallback;
   private onHelperVisibilityChangeCallback?: HelperVisibilityChangeCallback;
@@ -45,8 +50,12 @@ export class GLTFExploder {
     renderer?: WebGLRenderer,
     options: ExploderOptions = {}
   ) {
+    this.boundAnimate = this.animate.bind(this);
+    this.boundOnResize = this.onResize.bind(this);
+
     if (arg1 instanceof Object3D && scene && camera && renderer) {
       // 模式 2: 手动集成模式
+      this.isAutoMode = false;
       this.options = options;
       this.renderer = renderer;
       this.scene = scene;
@@ -54,6 +63,7 @@ export class GLTFExploder {
       this.initCore(arg1, scene, camera, renderer, options);
     } else {
       // 模式 1: 全自动模式
+      this.isAutoMode = true;
       this.options = arg1 as ExploderOptions;
       this.initializeAutoMode();
     }
@@ -203,7 +213,7 @@ export class GLTFExploder {
     this.animate();
 
     // 7. 监听窗口变化
-    window.addEventListener('resize', this.onResize.bind(this));
+    window.addEventListener('resize', this.boundOnResize);
   }
 
   private onResize(): void {
@@ -219,7 +229,9 @@ export class GLTFExploder {
   }
 
   private animate(): void {
-    requestAnimationFrame(this.animate.bind(this));
+    if (this.disposed) return;
+
+    this.animationFrameId = requestAnimationFrame(this.boundAnimate);
     if (this.controls) this.controls.update();
     
     // 更新 UI (例如同步相机视角的测量线)
@@ -362,6 +374,7 @@ export class GLTFExploder {
       if (this.ui.updateModelScale) {
         this.ui.updateModelScale(this.core.getVisualScale());
       }
+      this.ui.rebuildSnapStructures?.(model);
     }
 
     // 只有在缩放控件不存在时才创建
@@ -747,6 +760,9 @@ export class GLTFExploder {
    * 释放资源
    */
   public dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+
     if (this.ui) {
       this.ui.dispose();
       this.ui = null;
@@ -766,8 +782,47 @@ export class GLTFExploder {
       this.contextMenu.dispose();
       this.contextMenu = null;
     }
-    
+
+    if (this.boundOnWheel && this.renderer) {
+      this.renderer.domElement.removeEventListener('wheel', this.boundOnWheel);
+      this.boundOnWheel = null;
+    }
+
+    if (this.container) {
+      this.container.oncontextmenu = null;
+    }
+
+    if (this.isAutoMode) {
+      if (this.animationFrameId !== null) {
+        cancelAnimationFrame(this.animationFrameId);
+        this.animationFrameId = null;
+      }
+      window.removeEventListener('resize', this.boundOnResize);
+
+      if (this.controls) {
+        this.controls.dispose();
+        this.controls = null;
+      }
+
+      if (this.renderer) {
+        if (this.container && this.renderer.domElement.parentNode === this.container) {
+          this.container.removeChild(this.renderer.domElement);
+        }
+        this.renderer.dispose();
+        this.renderer = null;
+      }
+
+      if (this.scene && this.camera) {
+        this.scene.remove(this.camera);
+      }
+
+      this.scene = null;
+      this.camera = null;
+      this.container = null;
+    }
+
     this.core?.dispose();
+    this.core = null;
   }
 }
 

@@ -47,11 +47,19 @@ export class LiquidGlass {
   private mouse = { x: 0, y: 0 };
   private mouseUsed = false;
   private canvasDPI = window.devicePixelRatio || 1;
+  private targetElement!: HTMLElement;
+  private readonly onMouseMove: (e: MouseEvent) => void;
 
   constructor(targetElement: HTMLElement, options: LiquidGlassOptions) {
     this.id = generateId();
     this.width = options.width;
     this.height = options.height;
+    this.onMouseMove = (e) => {
+      const rect = this.targetElement.getBoundingClientRect();
+      this.mouse.x = (e.clientX - rect.left) / rect.width;
+      this.mouse.y = (e.clientY - rect.top) / rect.height;
+      if (this.mouseUsed) this.render();
+    };
     this.fragment = options.fragment || ((uv) => {
       const ix = uv.x - 0.5;
       const iy = uv.y - 0.5;
@@ -71,6 +79,8 @@ export class LiquidGlass {
   }
 
   private init(target: HTMLElement) {
+    this.targetElement = target;
+
     // 1. Setup SVG Filter
     this.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     this.svg.setAttribute('style', 'position:absolute; width:0; height:0; pointer-events:none;');
@@ -116,12 +126,7 @@ export class LiquidGlass {
     this.render();
 
     // 5. Mouse Interaction
-    target.addEventListener('mousemove', (e) => {
-      const rect = target.getBoundingClientRect();
-      this.mouse.x = (e.clientX - rect.left) / rect.width;
-      this.mouse.y = (e.clientY - rect.top) / rect.height;
-      if (this.mouseUsed) this.render();
-    });
+    target.addEventListener('mousemove', this.onMouseMove);
   }
 
   public updateSize(width: number, height: number) {
@@ -182,6 +187,11 @@ export class LiquidGlass {
   }
 
   public dispose() {
+    if (this.targetElement) {
+      this.targetElement.removeEventListener('mousemove', this.onMouseMove);
+      this.targetElement.style.backdropFilter = '';
+      (this.targetElement.style as any).webkitBackdropFilter = '';
+    }
     this.svg.remove();
     this.canvas.remove();
   }

@@ -34,6 +34,7 @@ export class InteractionManager {
   private readonly longPressDuration: number = 600; // 长按触发时长 (ms)
   private isLongPressTriggered: boolean = false;
   private lastTouchTime: number = 0; // 记录最后一次触摸时间以屏蔽冗余鼠标事件
+  private onContextMenuHandler!: (e: MouseEvent) => void;
 
   constructor(scene: Scene, camera: Camera, renderer: WebGLRenderer) {
     this.scene = scene;
@@ -50,6 +51,15 @@ export class InteractionManager {
     this.onTouchStart = this.onTouchStart.bind(this);
     this.onTouchMove = this.onTouchMove.bind(this);
     this.onTouchEnd = this.onTouchEnd.bind(this);
+    this.onContextMenuHandler = (e: MouseEvent) => {
+      if (!this.enabled) return;
+      e.preventDefault();
+      if (this.isLongPressTriggered) return;
+
+      if (this.onContextMenu) {
+        this.onContextMenu(e, this.selectedMesh);
+      }
+    };
 
     this.initEventListeners();
     this.initHelpers();
@@ -135,17 +145,7 @@ export class InteractionManager {
     canvas.addEventListener('click', this.onClick);
     canvas.addEventListener('dblclick', this.onDoubleClick);
     canvas.addEventListener('mousemove', this.onMouseMove);
-    canvas.addEventListener('contextmenu', (e) => {
-      // 如果是刚触发过长按，并且是移动端，通常不需要处理系统右键事件（已有 preventDefault）
-      if (!this.enabled) return;
-      e.preventDefault();
-      // 注意：某些环境下长按后还会触发 contextmenu
-      if (this.isLongPressTriggered) return;
-      
-      if (this.onContextMenu) {
-        this.onContextMenu(e, this.selectedMesh);
-      }
-    });
+    canvas.addEventListener('contextmenu', this.onContextMenuHandler);
 
     // 移动端长按支持
     canvas.addEventListener('touchstart', this.onTouchStart, { passive: false });
@@ -558,6 +558,10 @@ export class InteractionManager {
       } else {
         mesh.material = mesh.material.clone();
       }
+      this.originalMaterialState.set(key0, {
+        emissive: new Color(),
+        emissiveIntensity: 0
+      });
     }
 
     const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
@@ -624,6 +628,7 @@ export class InteractionManager {
     canvas.removeEventListener('click', this.onClick);
     canvas.removeEventListener('dblclick', this.onDoubleClick);
     canvas.removeEventListener('mousemove', this.onMouseMove);
+    canvas.removeEventListener('contextmenu', this.onContextMenuHandler);
     canvas.removeEventListener('touchstart', this.onTouchStart);
     canvas.removeEventListener('touchmove', this.onTouchMove);
     canvas.removeEventListener('touchend', this.onTouchEnd);

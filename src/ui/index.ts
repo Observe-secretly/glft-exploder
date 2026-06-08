@@ -244,8 +244,14 @@ class CompositeUI implements ExploderUI {
     this.measurement?.toggle();
   }
 
+  rebuildSnapStructures(model: Object3D) {
+    this.measurement?.buildSnapStructures(model);
+  }
+
   dispose() {
     window.removeEventListener('resize', this.resizeHandler);
+    this.scrollGuide?.remove();
+    this.scrollGuide = undefined;
     this.panel?.dispose();
     this.hud?.dispose();
     this.infoHUD?.dispose();

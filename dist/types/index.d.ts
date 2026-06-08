@@ -26,6 +26,7 @@ declare class InteractionManager {
     private readonly longPressDuration;
     private isLongPressTriggered;
     private lastTouchTime;
+    private onContextMenuHandler;
     constructor(scene: Scene, camera: Camera, renderer: WebGLRenderer);
     /**
      * 设置选中回调
@@ -234,6 +235,11 @@ declare class GLTFExploder {
     private interactionManager;
     private contextMenu;
     private boundOnWheel;
+    private isAutoMode;
+    private disposed;
+    private animationFrameId;
+    private boundAnimate;
+    private boundOnResize;
     private onModelChangeCallback?;
     private onHelperVisibilityChangeCallback?;
     private options;

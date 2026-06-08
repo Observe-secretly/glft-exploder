@@ -458,5 +458,9 @@ export class MeasurementTool {
     this.onMeasureStartCallback = undefined;
     this.onMeasureCompleteCallback = undefined;
     this.onSnapDetectedCallback = undefined;
+    this.octree = null;
+    this.edges = [];
+    this.holeEdges = [];
+    this.targetMeshes = [];
   }
 }

@@ -10,6 +10,7 @@ import { LiquidGlass } from './LiquidGlass';
 export class ExploderPanel implements ExploderUI {
   public element: HTMLElement;
   private liquidGlass?: LiquidGlass;
+  private resizeObserver: ResizeObserver | null = null;
   
   private multiplierSlider: HTMLInputElement;
   private exposureSlider: HTMLInputElement;
@@ -305,12 +306,12 @@ export class ExploderPanel implements ExploderUI {
 
     // 监听高度变化
     if (window.ResizeObserver) {
-      const ro = new ResizeObserver(() => {
+      this.resizeObserver = new ResizeObserver(() => {
         if (this.liquidGlass) {
           this.liquidGlass.updateSize(260, this.element.offsetHeight);
         }
       });
-      ro.observe(this.element);
+      this.resizeObserver.observe(this.element);
     }
   }
 
@@ -391,6 +392,8 @@ export class ExploderPanel implements ExploderUI {
   }
 
   public dispose(): void {
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
     this.liquidGlass?.dispose();
     if (this.element.parentNode) this.element.parentNode.removeChild(this.element);
   }

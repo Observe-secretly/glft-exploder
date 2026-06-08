@@ -8,20 +8,23 @@ export class ExploderContextMenu {
   private menu: HTMLElement;
   private onHide: (() => void) | null = null;
   private onShowAll: (() => void) | null = null;
+  private hideTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly onDocumentMouseDown: (e: MouseEvent) => void;
+  private readonly onWindowResize: () => void;
 
   constructor(_container: HTMLElement) {
-    this.menu = this.createMenu();
-    this.hide();
-    
-    // 点击其他地方关闭菜单
-    document.addEventListener('mousedown', (e) => {
+    this.onDocumentMouseDown = (e) => {
       if (!this.menu.contains(e.target as Node)) {
         this.hide();
       }
-    });
+    };
+    this.onWindowResize = () => this.hide();
 
-    // 窗口调整大小时关闭
-    window.addEventListener('resize', () => this.hide());
+    this.menu = this.createMenu();
+    this.hide();
+    
+    document.addEventListener('mousedown', this.onDocumentMouseDown);
+    window.addEventListener('resize', this.onWindowResize);
   }
 
   private createMenu(): HTMLElement {
@@ -109,9 +112,15 @@ export class ExploderContextMenu {
   }
 
   public hide(): void {
+    if (this.hideTimer !== null) {
+      clearTimeout(this.hideTimer);
+      this.hideTimer = null;
+    }
+
     this.menu.style.opacity = '0';
     this.menu.style.transform = 'scale(0.95)';
-    setTimeout(() => {
+    this.hideTimer = setTimeout(() => {
+      this.hideTimer = null;
       if (this.menu.style.opacity === '0') {
         this.menu.style.display = 'none';
       }
@@ -162,6 +171,14 @@ export class ExploderContextMenu {
   }
 
   public dispose(): void {
+    if (this.hideTimer !== null) {
+      clearTimeout(this.hideTimer);
+      this.hideTimer = null;
+    }
+
+    document.removeEventListener('mousedown', this.onDocumentMouseDown);
+    window.removeEventListener('resize', this.onWindowResize);
+
     if (this.menu.parentElement) {
       this.menu.parentElement.removeChild(this.menu);
     }
