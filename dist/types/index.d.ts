@@ -19,6 +19,7 @@ declare class InteractionManager {
     private isolatedMesh;
     private enabled;
     private originalMaterialState;
+    private clonedMeshUuids;
     private onSelect;
     private onFitToView;
     private onContextMenu;
@@ -117,6 +118,9 @@ declare class InteractionManager {
      * 取消选中
      */
     deselectMesh(): void;
+    private isHighlightableMaterial;
+    private getMaterialCacheKey;
+    private ensureMaterialCloned;
     /**
      * 高亮网格
      * @param mesh 网格对象

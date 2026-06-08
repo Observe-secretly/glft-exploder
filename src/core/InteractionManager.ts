@@ -1,4 +1,4 @@
-import { Raycaster, Vector2, Scene, Camera, WebGLRenderer, Mesh, MeshStandardMaterial, Color, GridHelper, AxesHelper } from 'three';
+import { Raycaster, Vector2, Scene, Camera, WebGLRenderer, Mesh, Material, MeshStandardMaterial, Color, GridHelper, AxesHelper } from 'three';
 import { EXPLODER_CONSTANTS } from './types';
 import { createTextSprite } from './utils';
 
@@ -24,8 +24,9 @@ export class InteractionManager {
   private isolatedMesh: Mesh | null = null; // 当前处于隔离显隐状态的网格
   // private hoveredMesh: Mesh | null = null; // 移除悬停状态
   private enabled: boolean = true; // 是否启用交互控制
-  // 原始材质属性缓存
-  private originalMaterialState: Map<string, { emissive: Color, emissiveIntensity: number, color?: Color }> = new Map();
+  // 原始材质属性缓存（key: `${mesh.uuid}_${materialIndex}`）
+  private originalMaterialState: Map<string, { emissive: Color, emissiveIntensity: number, color: Color }> = new Map();
+  private clonedMeshUuids: Set<string> = new Set();
   private onSelect: ((mesh: Mesh | null) => void) | null = null;
   private onFitToView: ((meshes: Mesh[]) => void) | null = null;
   private onContextMenu: ((event: MouseEvent | TouchEvent, mesh: Mesh | null) => void) | null = null;
@@ -543,6 +544,25 @@ export class InteractionManager {
     }
   }
 
+  private isHighlightableMaterial(mat: Material): mat is MeshStandardMaterial {
+    return 'emissive' in mat && (mat as MeshStandardMaterial).emissive instanceof Color;
+  }
+
+  private getMaterialCacheKey(mesh: Mesh, index: number): string {
+    return `${mesh.uuid}_${index}`;
+  }
+
+  private ensureMaterialCloned(mesh: Mesh): void {
+    if (this.clonedMeshUuids.has(mesh.uuid)) return;
+
+    if (Array.isArray(mesh.material)) {
+      mesh.material = mesh.material.map(mat => mat.clone());
+    } else {
+      mesh.material = mesh.material.clone();
+    }
+    this.clonedMeshUuids.add(mesh.uuid);
+  }
+
   /**
    * 高亮网格
    * @param mesh 网格对象
@@ -550,42 +570,26 @@ export class InteractionManager {
   private highlightMesh(mesh: Mesh): void {
     if (!mesh.material) return;
 
-    // 处理材质共享问题：确保当前网格拥有独立材质实例
-    const key0 = `${mesh.uuid}_0`;
-    if (!this.originalMaterialState.has(key0)) {
-      if (Array.isArray(mesh.material)) {
-        mesh.material = mesh.material.map(mat => mat.clone());
-      } else {
-        mesh.material = mesh.material.clone();
-      }
-      this.originalMaterialState.set(key0, {
-        emissive: new Color(),
-        emissiveIntensity: 0
-      });
-    }
+    this.ensureMaterialCloned(mesh);
 
     const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    
-    materials.forEach((mat, index) => {
-      if (mat instanceof MeshStandardMaterial) {
-        // 缓存原始状态（如果尚未缓存）
-        const key = `${mesh.uuid}_${index}`;
-        if (!this.originalMaterialState.has(key)) {
-          this.originalMaterialState.set(key, {
-            emissive: mat.emissive.clone(),
-            emissiveIntensity: mat.emissiveIntensity,
-            color: mat.color.clone() // 缓存原始颜色
-          });
-        }
 
-        // 设置纯蓝色高亮，完全覆盖原始颜色
-        // 1. 将漫反射颜色设为黑色，防止与高亮色混合
-        mat.color.set(0x000000);
-        
-        // 2. 将自发光设为目标蓝色
-        mat.emissive.set(EXPLODER_CONSTANTS.INTERACTION?.HIGHLIGHT_COLOR || 0x64B5F6);
-        mat.emissiveIntensity = 1.0; 
+    materials.forEach((mat, index) => {
+      if (!this.isHighlightableMaterial(mat)) return;
+
+      const key = this.getMaterialCacheKey(mesh, index);
+      if (!this.originalMaterialState.has(key)) {
+        this.originalMaterialState.set(key, {
+          emissive: mat.emissive.clone(),
+          emissiveIntensity: mat.emissiveIntensity,
+          color: mat.color.clone()
+        });
       }
+
+      // 仅通过自发光高亮，不修改漫反射颜色，避免贴图材质取消选中后发黑
+      mat.emissive.set(EXPLODER_CONSTANTS.INTERACTION?.HIGHLIGHT_COLOR || 0x64B5F6);
+      mat.emissiveIntensity = 1.0;
+      mat.needsUpdate = true;
     });
   }
 
@@ -597,24 +601,18 @@ export class InteractionManager {
     if (!mesh.material) return;
 
     const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    
+
     materials.forEach((mat, index) => {
-      if (mat instanceof MeshStandardMaterial) {
-        const key = `${mesh.uuid}_${index}`;
-        const original = this.originalMaterialState.get(key);
-        
-        if (original) {
-          // 恢复所有属性
-          mat.emissive.copy(original.emissive);
-          mat.emissiveIntensity = original.emissiveIntensity;
-          
-          if (original.color && mat.color) {
-            mat.color.copy(original.color);
-          }
-          
-          this.originalMaterialState.delete(key);
-        }
-      }
+      if (!this.isHighlightableMaterial(mat)) return;
+
+      const key = this.getMaterialCacheKey(mesh, index);
+      const original = this.originalMaterialState.get(key);
+      if (!original) return;
+
+      mat.emissive.copy(original.emissive);
+      mat.emissiveIntensity = original.emissiveIntensity;
+      mat.color.copy(original.color);
+      mat.needsUpdate = true;
     });
   }
 
@@ -635,6 +633,7 @@ export class InteractionManager {
     
     this.clearLongPressTimer();
     this.originalMaterialState.clear();
+    this.clonedMeshUuids.clear();
     
     // 释放辅助器资源
     if (this.gridHelper) {
